@@ -9,18 +9,6 @@ A high-performance status line renderer and background billing daemon that track
 * **Responsive Layouts**: Scales across wide, standard, compact, and minimal terminal width breakpoints.
 * **Robust Cache**: Implements lock-free atomic file writing to prevent I/O blocking during active terminal sessions.
 
-## Architecture
-
-```mermaid
-graph TD
-    AG[Antigravity CLI] -->|Stdin state stream| SL[statusline CLI Renderer]
-    SL -->|Renders formatted statusline| AG
-    
-    Daemon[statusline-daemon Background Job] -->|5 min poll| GCP[GCP Cloud Monitoring]
-    Daemon -->|JSON Cache| CacheDir[(~/.gemini/antigravity-cli/cache/)]
-    CacheDir -->|Read| SL
-```
-
 ## Installation
 
 ### From Source (Developers)
