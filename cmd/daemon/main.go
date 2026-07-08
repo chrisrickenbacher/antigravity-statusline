@@ -80,41 +80,45 @@ func syncPricing(pricingURL string) (*pricing.PricingCache, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
+	fallback := func(originalErr error) (*pricing.PricingCache, error) {
+		if readErr == nil {
+			return &current, nil
+		}
+		defaultCache := pricing.PricingCache{
+			LastFetched: time.Now().Format(time.RFC3339),
+			Models: map[string]pricing.ModelRate{
+				"flash": {InputPricePer1M: 0.075, OutputPricePer1M: 0.300},
+				"pro":   {InputPricePer1M: 1.250, OutputPricePer1M: 5.000},
+				"ultra": {InputPricePer1M: 2.500, OutputPricePer1M: 10.000},
+			},
+		}
+		_ = cache.WriteJSON("pricing_cache.json", &defaultCache)
+		return &defaultCache, fmt.Errorf("%w (created local fallback)", originalErr)
+	}
+
 	req, err := http.NewRequestWithContext(ctx, "GET", pricingURL, nil)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create request: %w", err)
+		return fallback(err)
 	}
 
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
-		if readErr == nil {
-			return &current, nil
-		}
-		return nil, fmt.Errorf("http request failed: %w", err)
+		return fallback(err)
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		if readErr == nil {
-			return &current, nil
-		}
-		return nil, fmt.Errorf("unexpected status code: %d", resp.StatusCode)
+		return fallback(fmt.Errorf("unexpected status code: %d", resp.StatusCode))
 	}
 
 	bodyBytes, err := io.ReadAll(resp.Body)
 	if err != nil {
-		if readErr == nil {
-			return &current, nil
-		}
-		return nil, fmt.Errorf("failed to read response: %w", err)
+		return fallback(err)
 	}
 
 	var fetched pricing.PricingCache
 	if err := json.Unmarshal(bodyBytes, &fetched); err != nil {
-		if readErr == nil {
-			return &current, nil
-		}
-		return nil, fmt.Errorf("failed to parse JSON: %w", err)
+		return fallback(err)
 	}
 
 	fetched.LastFetched = time.Now().Format(time.RFC3339)
@@ -184,7 +188,7 @@ func queryMetric(ctx context.Context, client *monitoring.MetricClient, projectID
 }
 
 func main() {
-	pricingURL := flag.String("pricing-url", "https://api.yourstore.dev/v1/pricing/gemini", "GCP pricing endpoint URL")
+	pricingURL := flag.String("pricing-url", "https://raw.githubusercontent.com/chrisrickenbacher/antigravity-statusline/main/pricing.json", "GCP pricing endpoint URL")
 	gcpProjectID := flag.String("project", "", "GCP Project ID (overrides env)")
 	cacheDirOverride := flag.String("cache-dir", "", "Custom cache directory path")
 	flag.Parse()

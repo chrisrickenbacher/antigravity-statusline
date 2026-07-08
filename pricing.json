@@ -1,0 +1,29 @@
+{
+  "last_fetched": "2026-07-08T12:00:00Z",
+  "models": {
+    "flash": {
+      "input_price_per_1m": 0.075,
+      "output_price_per_1m": 0.300
+    },
+    "pro": {
+      "input_price_per_1m": 1.250,
+      "output_price_per_1m": 5.000
+    },
+    "ultra": {
+      "input_price_per_1m": 2.500,
+      "output_price_per_1m": 10.000
+    },
+    "gemini-1.5-flash": {
+      "input_price_per_1m": 0.075,
+      "output_price_per_1m": 0.300
+    },
+    "gemini-1.5-pro": {
+      "input_price_per_1m": 1.250,
+      "output_price_per_1m": 5.000
+    },
+    "gemini-1.0-pro": {
+      "input_price_per_1m": 0.500,
+      "output_price_per_1m": 1.500
+    }
+  }
+}
