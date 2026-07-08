@@ -135,6 +135,19 @@ func RenderStatusLine(
 
 	modelShort := ShortenModelName(payload.Model.DisplayName, payload.Model.ID)
 
+	if payload.TerminalWidth >= 120 {
+		var turnPart, sessPart string
+		if pricingAvailable {
+			turnPart = fmt.Sprintf("Turn: +%s/%s (%s)", FormatTokens(payload.ContextWindow.CurrentUsage.InputTokens), FormatTokens(payload.ContextWindow.CurrentUsage.OutputTokens), turnCostStr)
+			sessPart = fmt.Sprintf("Sess: %s/%s (%s)", FormatTokens(payload.ContextWindow.TotalInputTokens), FormatTokens(payload.ContextWindow.TotalOutputTokens), sessCostStr)
+		} else {
+			turnPart = fmt.Sprintf("Turn: +%s/%s [No Pricing]", FormatTokens(payload.ContextWindow.CurrentUsage.InputTokens), FormatTokens(payload.ContextWindow.CurrentUsage.OutputTokens))
+			sessPart = fmt.Sprintf("Sess: %s/%s [No Pricing]", FormatTokens(payload.ContextWindow.TotalInputTokens), FormatTokens(payload.ContextWindow.TotalOutputTokens))
+		}
+		ctxPart := fmt.Sprintf("Ctx: %.1f%%", 100.0-payload.ContextWindow.RemainingPercentage)
+		return fmt.Sprintf("%s │ %s │ %s │ %s │ %s │ %s", stateSegment, modelShort, turnPart, sessPart, todaySegment, ctxPart)
+	}
+
 	if payload.TerminalWidth >= 110 {
 		var turnPart, sessPart string
 		if pricingAvailable {

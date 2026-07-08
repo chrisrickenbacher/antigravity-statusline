@@ -99,9 +99,17 @@ func TestRenderStatusLine(t *testing.T) {
 		// 1. WIDE
 		mockPayload.TerminalWidth = 120
 		resWide := RenderStatusLine(mockPayload, mockPriceCache, apiUsage, nil, now)
-		expectedWide := "\033[32m🟢 idle\033[0m │ Flash │ Turn: +1.2K/250 ($0.0002) │ Sess: 45K/3.1K ($0.0043) │ Today: $0.12 (2m ago)"
+		expectedWide := "\033[32m🟢 idle\033[0m │ Flash │ Turn: +1.2K/250 ($0.0002) │ Sess: 45K/3.1K ($0.0043) │ Today: $0.12 (2m ago) │ Ctx: 4.8%"
 		if resWide != expectedWide {
 			t.Errorf("WIDE expected:\n%q\ngot:\n%q", expectedWide, resWide)
+		}
+
+		// 1.5. WIDTH 110 (Wide without Ctx)
+		mockPayload.TerminalWidth = 110
+		resWide110 := RenderStatusLine(mockPayload, mockPriceCache, apiUsage, nil, now)
+		expectedWide110 := "\033[32m🟢 idle\033[0m │ Flash │ Turn: +1.2K/250 ($0.0002) │ Sess: 45K/3.1K ($0.0043) │ Today: $0.12 (2m ago)"
+		if resWide110 != expectedWide110 {
+			t.Errorf("WIDTH 110 expected:\n%q\ngot:\n%q", expectedWide110, resWide110)
 		}
 
 		// 2. STANDARD
@@ -183,7 +191,7 @@ func TestRenderStatusLine(t *testing.T) {
 		// WIDE with nil priceCache
 		mockPayload.TerminalWidth = 120
 		resWide := RenderStatusLine(mockPayload, nil, apiUsage, nil, now)
-		expectedWide := "\033[32m🟢 idle\033[0m │ Flash │ Turn: +1.2K/250 [No Pricing] │ Sess: 45K/3.1K [No Pricing] │ Today: [No Pricing]"
+		expectedWide := "\033[32m🟢 idle\033[0m │ Flash │ Turn: +1.2K/250 [No Pricing] │ Sess: 45K/3.1K [No Pricing] │ Today: [No Pricing] │ Ctx: 4.8%"
 		if resWide != expectedWide {
 			t.Errorf("WIDE expected:\n%q\ngot:\n%q", expectedWide, resWide)
 		}
