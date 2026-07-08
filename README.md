@@ -29,7 +29,7 @@ curl -fsSL https://raw.githubusercontent.com/chrisrickenbacher/antigravity-statu
 
 | Command | Action |
 | :--- | :--- |
-| `make build-local` | Builds `statusline` and `statusline-daemon` in the repository root. |
+| `make build-local` | Builds `statusline` and `agy-statusline-daemon` in the repository root. |
 | `make build-current` | Builds binaries with matching platform suffix under `releases/`. |
 | `make install` | Compiles current platform binaries and runs the installer. |
 | `make build-releases`| Cross-compiles optimized binaries for Darwin and Linux (AMD64/ARM64). |

@@ -45,25 +45,45 @@ echo "Detected platform: ${TARGET_SUFFIX}"
 # 2. Setup Directories
 mkdir -p "${BIN_DIR}" "${CACHE_DIR}"
 
+# 2b. Legacy Cleanup (statusline-daemon)
+echo "Checking for legacy configurations..."
+
+OLD_PLIST="${HOME}/Library/LaunchAgents/com.antigravity.statusline-daemon.plist"
+if [[ -f "${OLD_PLIST}" ]]; then
+  echo "Cleaning up legacy macOS LaunchAgent..."
+  launchctl bootout "gui/$(id -u)" "${OLD_PLIST}" 2>/dev/null || true
+  rm -f "${OLD_PLIST}"
+fi
+
+OLD_SYSTEMD_DIR="${HOME}/.config/systemd/user"
+if [[ -f "${OLD_SYSTEMD_DIR}/antigravity-statusline.timer" ]]; then
+  echo "Cleaning up legacy Linux systemd timer..."
+  systemctl --user disable --now antigravity-statusline.timer 2>/dev/null || true
+  rm -f "${OLD_SYSTEMD_DIR}/antigravity-statusline.service" "${OLD_SYSTEMD_DIR}/antigravity-statusline.timer"
+  systemctl --user daemon-reload
+fi
+
+rm -f "${BIN_DIR}/statusline-daemon"
+
 # 3. Precompiled Asset Fetching & Atomic Overwrite
-if [[ -f "./releases/statusline-${TARGET_SUFFIX}" && -f "./releases/statusline-daemon-${TARGET_SUFFIX}" ]]; then
+if [[ -f "./releases/statusline-${TARGET_SUFFIX}" && -f "./releases/agy-statusline-daemon-${TARGET_SUFFIX}" ]]; then
   echo "Found local compiled assets in releases/. Installing directly..."
   cp "./releases/statusline-${TARGET_SUFFIX}" "${BIN_DIR}/statusline.tmp"
-  cp "./releases/statusline-daemon-${TARGET_SUFFIX}" "${BIN_DIR}/statusline-daemon.tmp"
+  cp "./releases/agy-statusline-daemon-${TARGET_SUFFIX}" "${BIN_DIR}/agy-statusline-daemon.tmp"
 else
   STATUSLINE_URL="${REPO_URL}/releases/statusline-${TARGET_SUFFIX}"
-  DAEMON_URL="${REPO_URL}/releases/statusline-daemon-${TARGET_SUFFIX}"
+  DAEMON_URL="${REPO_URL}/releases/agy-statusline-daemon-${TARGET_SUFFIX}"
 
   echo "Fetching precompiled statusline binary from GitHub..."
   curl -fsSL -o "${BIN_DIR}/statusline.tmp" "${STATUSLINE_URL}"
 
   echo "Fetching precompiled billing daemon binary from GitHub..."
-  curl -fsSL -o "${BIN_DIR}/statusline-daemon.tmp" "${DAEMON_URL}"
+  curl -fsSL -o "${BIN_DIR}/agy-statusline-daemon.tmp" "${DAEMON_URL}"
 fi
 
 mv "${BIN_DIR}/statusline.tmp" "${BIN_DIR}/statusline"
-mv "${BIN_DIR}/statusline-daemon.tmp" "${BIN_DIR}/statusline-daemon"
-chmod +x "${BIN_DIR}/statusline" "${BIN_DIR}/statusline-daemon"
+mv "${BIN_DIR}/agy-statusline-daemon.tmp" "${BIN_DIR}/agy-statusline-daemon"
+chmod +x "${BIN_DIR}/statusline" "${BIN_DIR}/agy-statusline-daemon"
 
 echo "Binaries safely installed in ${BIN_DIR}"
 
@@ -82,7 +102,7 @@ fi
 
 if [[ "${PLATFORM_OS}" == "darwin" ]]; then
   PLIST_DIR="${HOME}/Library/LaunchAgents"
-  PLIST_PATH="${PLIST_DIR}/com.antigravity.statusline-daemon.plist"
+  PLIST_PATH="${PLIST_DIR}/com.antigravity.agy-statusline-daemon.plist"
   mkdir -p "${PLIST_DIR}"
 
   echo "Configuring macOS launchd service..."
@@ -106,10 +126,10 @@ if [[ "${PLATFORM_OS}" == "darwin" ]]; then
 <plist version="1.0">
 <dict>
     <key>Label</key>
-    <string>com.antigravity.statusline-daemon</string>
+    <string>com.antigravity.agy-statusline-daemon</string>
     <key>ProgramArguments</key>
     <array>
-        <string>${BIN_DIR}/statusline-daemon</string>
+        <string>${BIN_DIR}/agy-statusline-daemon</string>
     </array>
     <key>StartInterval</key>
     <integer>300</integer>
@@ -144,21 +164,21 @@ elif [[ "${PLATFORM_OS}" == "linux" ]]; then
 Environment=\"GCP_PROJECT_ID=${VAL}\""
   fi
 
-  cat <<EOF > "${SYSTEMD_DIR}/antigravity-statusline.service"
+  cat <<EOF > "${SYSTEMD_DIR}/antigravity-agy-statusline.service"
 [Unit]
 Description=Antigravity Statusline Billing Daemon
 After=network.target
 
 [Service]
 Type=simple
-ExecStart=${BIN_DIR}/statusline-daemon
+ExecStart=${BIN_DIR}/agy-statusline-daemon
 ${SERVICE_ENV}
 
 [Install]
 WantedBy=default.target
 EOF
 
-  cat <<EOF > "${SYSTEMD_DIR}/antigravity-statusline.timer"
+  cat <<EOF > "${SYSTEMD_DIR}/antigravity-agy-statusline.timer"
 [Unit]
 Description=Run Antigravity Statusline Billing Daemon every 5 minutes
 
@@ -172,8 +192,8 @@ EOF
 
   echo "Reloading systemd user configs..."
   systemctl --user daemon-reload
-  systemctl --user enable --now antigravity-statusline.timer
-  systemctl --user restart antigravity-statusline.timer
+  systemctl --user enable --now antigravity-agy-statusline.timer
+  systemctl --user restart antigravity-agy-statusline.timer
 fi
 
 # 5. CLI Settings Integration

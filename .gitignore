@@ -39,4 +39,4 @@ go.work.sum
 
 # Root binaries
 /statusline
-/statusline-daemon
+/agy-statusline-daemon

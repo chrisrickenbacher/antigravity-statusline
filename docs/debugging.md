@@ -1,6 +1,6 @@
 # Debugging Guide
 
-This guide explains how to troubleshoot, inspect, and debug the `statusline` renderer and the background `statusline-daemon` service.
+This guide explains how to troubleshoot, inspect, and debug the `statusline` renderer and the background `agy-statusline-daemon` service.
 
 ## 1. Background Daemon Logs
 
@@ -20,11 +20,11 @@ tail -f ~/.gemini/antigravity-cli/cache/daemon-err.log
 The daemon runs as a systemd user service. Its logs are collected by the standard systemd journal:
 * **View Logs**:
   ```bash
-  journalctl --user -u antigravity-statusline -n 50 --no-pager
+  journalctl --user -u antigravity-agy-statusline -n 50 --no-pager
   ```
 * **Watch Logs (Follow)**:
   ```bash
-  journalctl --user -u antigravity-statusline -f
+  journalctl --user -u antigravity-agy-statusline -f
   ```
 
 ---
@@ -36,7 +36,7 @@ You can run both binaries directly from the terminal to bypass schedulers and vi
 ### Debugging the Daemon Interactively
 Run the binary directly. It will attempt to poll GCP Monitoring and fetch pricing, printing any warnings or errors immediately to stderr:
 ```bash
-~/.gemini/antigravity-cli/bin/statusline-daemon
+~/.gemini/antigravity-cli/bin/agy-statusline-daemon
 ```
 
 ### Debugging the Status Line Renderer

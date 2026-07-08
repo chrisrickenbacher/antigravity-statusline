@@ -25,7 +25,7 @@ endif
 PLATFORM_SUF := $(OS_SUF)-$(ARCH_SUF)
 
 BINARY_NAME=statusline
-DAEMON_NAME=statusline-daemon
+DAEMON_NAME=agy-statusline-daemon
 RELEASES_DIR=releases
 
 .PHONY: all build-local build-releases build-current install clean test
@@ -71,7 +71,7 @@ build-releases: clean
 
 clean:
 	@echo "Cleaning up..."
-	rm -f $(BINARY_NAME) $(DAEMON_NAME)
+	rm -f $(BINARY_NAME) $(DAEMON_NAME) statusline-daemon
 	rm -rf $(RELEASES_DIR)
 
 test:

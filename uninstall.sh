@@ -12,22 +12,41 @@ OS="$(uname -s | tr '[:upper:]' '[:lower:]')"
 
 # 1. Disable Daemon Schedulers
 if [[ "${OS}" == "darwin" ]]; then
-  PLIST_PATH="${HOME}/Library/LaunchAgents/com.antigravity.statusline-daemon.plist"
+  # Clean up legacy daemon
+  OLD_PLIST="${HOME}/Library/LaunchAgents/com.antigravity.statusline-daemon.plist"
+  if [[ -f "${OLD_PLIST}" ]]; then
+    echo "Stopping and unloading legacy macOS launchd service..."
+    launchctl bootout "gui/$(id -u)" "${OLD_PLIST}" 2>/dev/null || true
+    rm -f "${OLD_PLIST}"
+  fi
+
+  # Clean up new daemon
+  PLIST_PATH="${HOME}/Library/LaunchAgents/com.antigravity.agy-statusline-daemon.plist"
   if [[ -f "${PLIST_PATH}" ]]; then
     echo "Stopping and unloading macOS launchd service..."
     launchctl bootout "gui/$(id -u)" "${PLIST_PATH}" 2>/dev/null || true
     rm -f "${PLIST_PATH}"
   fi
 elif [[ "${OS}" == "linux" ]]; then
-  TIMER_PATH="${HOME}/.config/systemd/user/antigravity-statusline.timer"
-  SERVICE_PATH="${HOME}/.config/systemd/user/antigravity-statusline.service"
-  
+  # Clean up legacy daemon
+  OLD_TIMER="${HOME}/.config/systemd/user/antigravity-statusline.timer"
+  OLD_SERVICE="${HOME}/.config/systemd/user/antigravity-statusline.service"
+  if [[ -f "${OLD_TIMER}" ]]; then
+    echo "Stopping and disabling legacy Linux systemd user timers..."
+    systemctl --user disable --now antigravity-statusline.timer 2>/dev/null || true
+    rm -f "${OLD_TIMER}" "${OLD_SERVICE}"
+  fi
+
+  # Clean up new daemon
+  TIMER_PATH="${HOME}/.config/systemd/user/antigravity-agy-statusline.timer"
+  SERVICE_PATH="${HOME}/.config/systemd/user/antigravity-agy-statusline.service"
   if [[ -f "${TIMER_PATH}" ]]; then
     echo "Stopping and disabling Linux systemd user timers..."
-    systemctl --user disable --now antigravity-statusline.timer 2>/dev/null || true
+    systemctl --user disable --now antigravity-agy-statusline.timer 2>/dev/null || true
     rm -f "${TIMER_PATH}" "${SERVICE_PATH}"
-    systemctl --user daemon-reload
   fi
+
+  systemctl --user daemon-reload
 fi
 
 # 2. Remove settings.json Hook
@@ -51,7 +70,7 @@ fi
 
 # 3. Wipe File Footprints
 echo "Removing binary files..."
-rm -f "${BIN_DIR}/statusline" "${BIN_DIR}/statusline-daemon"
+rm -f "${BIN_DIR}/statusline" "${BIN_DIR}/statusline-daemon" "${BIN_DIR}/agy-statusline-daemon"
 
 # 4. Optional Cache Purge Prompt (default to safe no-deletion if non-interactive)
 PURGE="n"
