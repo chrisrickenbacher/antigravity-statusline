@@ -56,6 +56,18 @@ func TestResolveRates(t *testing.T) {
 		}
 	})
 
+	t.Run("spaces and parentheses normalization", func(t *testing.T) {
+		rates, err := ResolveRates(mockCache, "Gemini 3.5 Flash (High)")
+		if err != nil {
+			t.Fatalf("Expected no error, got: %v", err)
+		}
+		expectedInput := 0.075 / 1e6
+		expectedOutput := 0.300 / 1e6
+		if rates.InputRate != expectedInput || rates.OutputRate != expectedOutput {
+			t.Errorf("Expected rates %f/%f, got %f/%f", expectedInput, expectedOutput, rates.InputRate, rates.OutputRate)
+		}
+	})
+
 	t.Run("missing model in cache", func(t *testing.T) {
 		_, err := ResolveRates(mockCache, "gemini-4.0-ultra")
 		if !errors.Is(err, ErrNoPricingCache) {

@@ -22,23 +22,26 @@ type PricingCache struct {
 	Models      map[string]ModelRate `json:"models"`
 }
 
+func normalizeModelID(s string) string {
+	s = strings.ToLower(s)
+	s = strings.ReplaceAll(s, "-", "")
+	s = strings.ReplaceAll(s, "_", "")
+	s = strings.ReplaceAll(s, " ", "")
+	s = strings.ReplaceAll(s, "(high)", "")
+	s = strings.ReplaceAll(s, "high", "")
+	return s
+}
+
 func ResolveRates(cache *PricingCache, modelID string) (Rates, error) {
 	if cache == nil || cache.Models == nil {
 		return Rates{}, ErrNoPricingCache
 	}
 
-	id := strings.ToLower(modelID)
-
-	if rate, exists := cache.Models[id]; exists {
-		return Rates{
-			InputRate:  rate.InputPricePer1M / 1e6,
-			OutputRate: rate.OutputPricePer1M / 1e6,
-		}, nil
-	}
+	id := normalizeModelID(modelID)
 
 	for modelKey, rate := range cache.Models {
-		keyLower := strings.ToLower(modelKey)
-		if strings.Contains(id, keyLower) || strings.Contains(keyLower, id) {
+		keyNorm := normalizeModelID(modelKey)
+		if strings.Contains(id, keyNorm) || strings.Contains(keyNorm, id) {
 			return Rates{
 				InputRate:  rate.InputPricePer1M / 1e6,
 				OutputRate: rate.OutputPricePer1M / 1e6,
