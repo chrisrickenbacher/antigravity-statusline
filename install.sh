@@ -189,10 +189,12 @@ if os.path.exists(path):
     except Exception:
         pass
 
-settings['statusline'] = {
+settings['statusLine'] = {
     'enabled': True,
     'command': '${BIN_DIR}/statusline'
 }
+if 'statusline' in settings:
+    settings.pop('statusline')
 
 os.makedirs(os.path.dirname(path), exist_ok=True)
 with open(path, 'w') as f:
