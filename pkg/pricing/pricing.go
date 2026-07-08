@@ -1,11 +1,25 @@
 package pricing
 
 import (
+	_ "embed"
+	"encoding/json"
 	"errors"
 	"strings"
 )
 
 var ErrNoPricingCache = errors.New("pricing cache file not found or unreadable")
+
+//go:embed pricing.json
+var defaultPricingBytes []byte
+
+// GetDefaultPricing returns a copy of the embedded default pricing cache.
+func GetDefaultPricing() (*PricingCache, error) {
+	var cache PricingCache
+	if err := json.Unmarshal(defaultPricingBytes, &cache); err != nil {
+		return nil, err
+	}
+	return &cache, nil
+}
 
 type Rates struct {
 	InputRate  float64

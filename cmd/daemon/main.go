@@ -113,22 +113,13 @@ func syncPricing(pricingURL string) (*pricing.PricingCache, error) {
 		if readErr == nil {
 			return &current, nil
 		}
-		defaultCache := pricing.PricingCache{
-			LastFetched: time.Now().Format(time.RFC3339),
-			Models: map[string]pricing.ModelRate{
-				"flash":                 {InputPricePer1M: 0.075, OutputPricePer1M: 0.300},
-				"pro":                   {InputPricePer1M: 1.250, OutputPricePer1M: 5.000},
-				"gemini-1.5-flash":      {InputPricePer1M: 0.075, OutputPricePer1M: 0.300},
-				"gemini-1.5-pro":        {InputPricePer1M: 1.250, OutputPricePer1M: 5.000},
-				"gemini-2.0-flash":      {InputPricePer1M: 0.150, OutputPricePer1M: 0.600},
-				"gemini-2.0-flash-lite": {InputPricePer1M: 0.075, OutputPricePer1M: 0.300},
-				"gemini-1.0-pro":        {InputPricePer1M: 0.500, OutputPricePer1M: 1.500},
-				"gemini-3.5-flash":      {InputPricePer1M: 0.075, OutputPricePer1M: 0.300},
-				"gemini-3.5-pro":        {InputPricePer1M: 1.250, OutputPricePer1M: 5.000},
-			},
+		defaultCache, err := pricing.GetDefaultPricing()
+		if err != nil {
+			return nil, fmt.Errorf("failed to load embedded default pricing: %w", err)
 		}
-		_ = cache.WriteJSON("pricing_cache.json", &defaultCache)
-		return &defaultCache, fmt.Errorf("%w (created local fallback)", originalErr)
+		defaultCache.LastFetched = time.Now().Format(time.RFC3339)
+		_ = cache.WriteJSON("pricing_cache.json", defaultCache)
+		return defaultCache, fmt.Errorf("%w (created local fallback)", originalErr)
 	}
 
 	req, err := http.NewRequestWithContext(ctx, "GET", pricingURL, nil)
@@ -235,7 +226,7 @@ func queryMetric(ctx context.Context, client *monitoring.MetricClient, projectID
 }
 
 func main() {
-	pricingURL := flag.String("pricing-url", "https://raw.githubusercontent.com/chrisrickenbacher/antigravity-statusline/main/pricing.json", "GCP pricing endpoint URL")
+	pricingURL := flag.String("pricing-url", "https://raw.githubusercontent.com/chrisrickenbacher/antigravity-statusline/main/pkg/pricing/pricing.json", "GCP pricing endpoint URL")
 	gcpProjectID := flag.String("project", "", "GCP Project ID (overrides env)")
 	cacheDirOverride := flag.String("cache-dir", "", "Custom cache directory path")
 	flag.Parse()

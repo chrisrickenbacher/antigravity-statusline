@@ -1,0 +1,29 @@
+{
+  "last_fetched": "2026-07-08T12:00:00Z",
+  "models": {
+    "gemini-3.5-flash": {
+      "input_price_per_1m": 1.500,
+      "output_price_per_1m": 9.000
+    },
+    "gemini-3.1-pro": {
+      "input_price_per_1m": 2.000,
+      "output_price_per_1m": 12.000
+    },
+    "claude-3.5-sonnet": {
+      "input_price_per_1m": 3.000,
+      "output_price_per_1m": 15.000
+    },
+    "claude-3-5-sonnet": {
+      "input_price_per_1m": 3.000,
+      "output_price_per_1m": 15.000
+    },
+    "gpt-4o": {
+      "input_price_per_1m": 2.500,
+      "output_price_per_1m": 10.000
+    },
+    "gpt-4o-mini": {
+      "input_price_per_1m": 0.150,
+      "output_price_per_1m": 0.600
+    }
+  }
+}

@@ -99,3 +99,26 @@ func TestCalculateCost(t *testing.T) {
 		t.Errorf("Expected cost %f, got %f (diff: %e)", expectedCost, cost, diff)
 	}
 }
+
+func TestGetDefaultPricing(t *testing.T) {
+	cache, err := GetDefaultPricing()
+	if err != nil {
+		t.Fatalf("Expected no error from GetDefaultPricing, got: %v", err)
+	}
+
+	if cache == nil {
+		t.Fatal("Expected pricing cache to be non-nil")
+	}
+
+	if len(cache.Models) == 0 {
+		t.Error("Expected models to be populated in default pricing cache")
+	}
+
+	// Verify our key models exist
+	expectedModels := []string{"gemini-3.5-flash", "gemini-3.1-pro"}
+	for _, model := range expectedModels {
+		if _, ok := cache.Models[model]; !ok {
+			t.Errorf("Expected model %q in default pricing cache", model)
+		}
+	}
+}
