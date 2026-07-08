@@ -4,11 +4,11 @@ This document illustrates the design and pipeline of the Antigravity Status Line
 
 ```mermaid
 graph TD
-    AG[Antigravity CLI] -->|Stdin state stream| SL[statusline CLI Renderer]
+    AG["Antigravity CLI"] -->|Stdin state stream| SL["statusline CLI Renderer"]
     SL -->|Renders formatted statusline| AG
     
-    Daemon[agy-statusline-daemon Background Job] -->|5 min poll| GCP[GCP Cloud Monitoring]
-    Daemon -->|JSON Cache| CacheDir[(~/.gemini/antigravity-cli/cache/)]
+    Daemon["agy-statusline-daemon Background Job"] -->|5 min poll| GCP["GCP Cloud Monitoring"]
+    Daemon -->|JSON Cache| CacheDir[("~/.gemini/antigravity-cli/cache/")]
     CacheDir -->|Read| SL
 ```
 
