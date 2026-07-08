@@ -15,6 +15,7 @@ import (
 
 	monitoring "cloud.google.com/go/monitoring/apiv3"
 	"cloud.google.com/go/monitoring/apiv3/v2/monitoringpb"
+	"google.golang.org/api/iterator"
 	"google.golang.org/api/option"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -115,14 +116,15 @@ func syncPricing(pricingURL string) (*pricing.PricingCache, error) {
 		defaultCache := pricing.PricingCache{
 			LastFetched: time.Now().Format(time.RFC3339),
 			Models: map[string]pricing.ModelRate{
-				"flash":            {InputPricePer1M: 0.075, OutputPricePer1M: 0.300},
-				"pro":              {InputPricePer1M: 1.250, OutputPricePer1M: 5.000},
-				"ultra":            {InputPricePer1M: 2.500, OutputPricePer1M: 10.000},
-				"gemini-1.5-flash": {InputPricePer1M: 0.075, OutputPricePer1M: 0.300},
-				"gemini-1.5-pro":   {InputPricePer1M: 1.250, OutputPricePer1M: 5.000},
-				"gemini-1.0-pro":   {InputPricePer1M: 0.500, OutputPricePer1M: 1.500},
-				"gemini-3.5-flash": {InputPricePer1M: 0.075, OutputPricePer1M: 0.300},
-				"gemini-3.5-pro":   {InputPricePer1M: 1.250, OutputPricePer1M: 5.000},
+				"flash":                 {InputPricePer1M: 0.075, OutputPricePer1M: 0.300},
+				"pro":                   {InputPricePer1M: 1.250, OutputPricePer1M: 5.000},
+				"gemini-1.5-flash":      {InputPricePer1M: 0.075, OutputPricePer1M: 0.300},
+				"gemini-1.5-pro":        {InputPricePer1M: 1.250, OutputPricePer1M: 5.000},
+				"gemini-2.0-flash":      {InputPricePer1M: 0.150, OutputPricePer1M: 0.600},
+				"gemini-2.0-flash-lite": {InputPricePer1M: 0.075, OutputPricePer1M: 0.300},
+				"gemini-1.0-pro":        {InputPricePer1M: 0.500, OutputPricePer1M: 1.500},
+				"gemini-3.5-flash":      {InputPricePer1M: 0.075, OutputPricePer1M: 0.300},
+				"gemini-3.5-pro":        {InputPricePer1M: 1.250, OutputPricePer1M: 5.000},
 			},
 		}
 		_ = cache.WriteJSON("pricing_cache.json", &defaultCache)
@@ -168,9 +170,15 @@ type TokenStats struct {
 }
 
 func queryMetric(ctx context.Context, client *monitoring.MetricClient, projectID string, metricType string, startTime, endTime time.Time, priceCache *pricing.PricingCache, isOutput bool) (TokenStats, error) {
+	typeValue := "input"
+	if isOutput {
+		typeValue = "output"
+	}
+	filter := fmt.Sprintf(`metric.type = "%s" AND metric.labels.type = "%s"`, metricType, typeValue)
+
 	req := &monitoringpb.ListTimeSeriesRequest{
 		Name:   "projects/" + projectID,
-		Filter: fmt.Sprintf(`metric.type = "%s"`, metricType),
+		Filter: filter,
 		Interval: &monitoringpb.TimeInterval{
 			StartTime: timestamppb.New(startTime),
 			EndTime:   timestamppb.New(endTime),
@@ -185,7 +193,7 @@ func queryMetric(ctx context.Context, client *monitoring.MetricClient, projectID
 	it := client.ListTimeSeries(ctx, req)
 	for {
 		resp, err := it.Next()
-		if err == io.EOF {
+		if err == iterator.Done {
 			break
 		}
 		if err != nil {
@@ -196,7 +204,10 @@ func queryMetric(ctx context.Context, client *monitoring.MetricClient, projectID
 		}
 
 		var modelID string
-		if resp.Metric != nil && resp.Metric.Labels != nil {
+		if resp.Resource != nil && resp.Resource.Labels != nil {
+			modelID = resp.Resource.Labels["model_user_id"]
+		}
+		if modelID == "" && resp.Metric != nil && resp.Metric.Labels != nil {
 			modelID = resp.Metric.Labels["model_id"]
 		}
 
@@ -264,13 +275,15 @@ func main() {
 	startTime := localMidnight.UTC()
 	endTime := now.UTC()
 
-	inputStats, err := queryMetric(ctx, client, projectID, "aiplatform.googleapis.com/prediction/prompt_token_count", startTime, endTime, pricingCache, false)
+	const metricType = "aiplatform.googleapis.com/publisher/online_serving/token_count"
+
+	inputStats, err := queryMetric(ctx, client, projectID, metricType, startTime, endTime, pricingCache, false)
 	if err != nil {
 		handleError(err)
 		os.Exit(1)
 	}
 
-	outputStats, err := queryMetric(ctx, client, projectID, "aiplatform.googleapis.com/prediction/response_token_count", startTime, endTime, pricingCache, true)
+	outputStats, err := queryMetric(ctx, client, projectID, metricType, startTime, endTime, pricingCache, true)
 	if err != nil {
 		handleError(err)
 		os.Exit(1)
