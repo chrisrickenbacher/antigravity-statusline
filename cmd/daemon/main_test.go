@@ -7,6 +7,14 @@ import (
 )
 
 func TestResolveProjectID(t *testing.T) {
+	// Isolate HOME directory so tests don't read the real settings.json of the user
+	tempHome, err := os.MkdirTemp("", "home-mock-*")
+	if err != nil {
+		t.Fatalf("Failed to create temp home: %v", err)
+	}
+	defer os.RemoveAll(tempHome)
+	t.Setenv("HOME", tempHome)
+
 	t.Run("uses flag override", func(t *testing.T) {
 		res := resolveProjectID("flag-project")
 		if res != "flag-project" {

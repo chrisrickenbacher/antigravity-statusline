@@ -16,6 +16,8 @@ import (
 	monitoring "cloud.google.com/go/monitoring/apiv3"
 	"cloud.google.com/go/monitoring/apiv3/v2/monitoringpb"
 	"google.golang.org/api/option"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/durationpb"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
@@ -24,10 +26,36 @@ import (
 	"github.com/chrisrickenbacher/antigravity-statusline/pkg/state"
 )
 
+var resolvedProjectID string
+
 func resolveProjectID(flagProj string) string {
 	if flagProj != "" {
 		return flagProj
 	}
+	// Try reading settings.json from ANTIGRAVITY_CACHE_DIR/../settings.json or ~/.gemini/antigravity-cli/settings.json
+	var settingsPath string
+	if cacheDir := os.Getenv("ANTIGRAVITY_CACHE_DIR"); cacheDir != "" {
+		settingsPath = filepath.Join(filepath.Dir(cacheDir), "settings.json")
+	} else {
+		home, err := os.UserHomeDir()
+		if err == nil {
+			settingsPath = filepath.Join(home, ".gemini", "antigravity-cli", "settings.json")
+		}
+	}
+
+	if settingsPath != "" {
+		if settingsBytes, err := os.ReadFile(settingsPath); err == nil {
+			var settings struct {
+				GCP struct {
+					Project string `json:"project"`
+				} `json:"gcp"`
+			}
+			if err := json.Unmarshal(settingsBytes, &settings); err == nil && settings.GCP.Project != "" {
+				return settings.GCP.Project
+			}
+		}
+	}
+
 	if envProj := os.Getenv("GCP_PROJECT_ID"); envProj != "" {
 		return envProj
 	}
@@ -87,9 +115,14 @@ func syncPricing(pricingURL string) (*pricing.PricingCache, error) {
 		defaultCache := pricing.PricingCache{
 			LastFetched: time.Now().Format(time.RFC3339),
 			Models: map[string]pricing.ModelRate{
-				"flash": {InputPricePer1M: 0.075, OutputPricePer1M: 0.300},
-				"pro":   {InputPricePer1M: 1.250, OutputPricePer1M: 5.000},
-				"ultra": {InputPricePer1M: 2.500, OutputPricePer1M: 10.000},
+				"flash":            {InputPricePer1M: 0.075, OutputPricePer1M: 0.300},
+				"pro":              {InputPricePer1M: 1.250, OutputPricePer1M: 5.000},
+				"ultra":            {InputPricePer1M: 2.500, OutputPricePer1M: 10.000},
+				"gemini-1.5-flash": {InputPricePer1M: 0.075, OutputPricePer1M: 0.300},
+				"gemini-1.5-pro":   {InputPricePer1M: 1.250, OutputPricePer1M: 5.000},
+				"gemini-1.0-pro":   {InputPricePer1M: 0.500, OutputPricePer1M: 1.500},
+				"gemini-3.5-flash": {InputPricePer1M: 0.075, OutputPricePer1M: 0.300},
+				"gemini-3.5-pro":   {InputPricePer1M: 1.250, OutputPricePer1M: 5.000},
 			},
 		}
 		_ = cache.WriteJSON("pricing_cache.json", &defaultCache)
@@ -156,6 +189,9 @@ func queryMetric(ctx context.Context, client *monitoring.MetricClient, projectID
 			break
 		}
 		if err != nil {
+			if status.Code(err) == codes.NotFound {
+				return TokenStats{}, nil
+			}
 			return TokenStats{}, err
 		}
 
@@ -203,6 +239,7 @@ func main() {
 	}
 
 	projectID := resolveProjectID(*gcpProjectID)
+	resolvedProjectID = projectID
 	if projectID == "" {
 		writeErrorStatus("config_error", "unresolved GCP Project ID")
 		os.Exit(1)
@@ -256,12 +293,16 @@ func main() {
 }
 
 func writeErrorStatus(status, errMsg string) {
+	fmt.Fprintf(os.Stderr, "Error [%s]: %s\n", status, errMsg)
 	var current state.ApiUsage
 	_ = cache.ReadJSON("api_usage.json", &current)
 
 	current.Status = status
 	current.ErrorMessage = errMsg
 	current.LastPollTime = time.Now().Format(time.RFC3339)
+	if resolvedProjectID != "" {
+		current.GCPProjectID = resolvedProjectID
+	}
 
 	_ = cache.WriteJSON("api_usage.json", &current)
 }

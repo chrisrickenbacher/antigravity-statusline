@@ -24,6 +24,14 @@
     "gemini-1.0-pro": {
       "input_price_per_1m": 0.500,
       "output_price_per_1m": 1.500
+    },
+    "gemini-3.5-flash": {
+      "input_price_per_1m": 0.075,
+      "output_price_per_1m": 0.300
+    },
+    "gemini-3.5-pro": {
+      "input_price_per_1m": 1.250,
+      "output_price_per_1m": 5.000
     }
   }
 }
