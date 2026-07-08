@@ -50,6 +50,10 @@ To remove binaries, disable background schedulers, and restore `settings.json`:
 ./uninstall.sh
 ```
 
+## Troubleshooting
+
+See [Debugging Guide](docs/debugging.md) for logs, manual test payloads, and troubleshooting commands.
+
 ## Contributing
 
 Contributions are welcome. Please open an issue or submit a pull request for any bugs, features, or layout improvements.
