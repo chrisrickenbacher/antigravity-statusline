@@ -24,6 +24,17 @@ func main() {
 		return
 	}
 
+	// Record this turn's usage in its own isolated session log
+	_ = cache.AppendLocalUsage(
+		payload.ConversationID,
+		payload.Model.ID,
+		payload.ContextWindow.CurrentUsage.InputTokens,
+		payload.ContextWindow.CurrentUsage.CachedInputTokens,
+		payload.ContextWindow.CurrentUsage.OutputTokens,
+		payload.ContextWindow.TotalInputTokens,
+		payload.ContextWindow.TotalOutputTokens,
+	)
+
 	var priceCache pricing.PricingCache
 	var priceCachePtr *pricing.PricingCache
 	if err := cache.ReadJSON("pricing_cache.json", &priceCache); err == nil {

@@ -4,7 +4,9 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
+	"time"
 )
 
 type TestData struct {
@@ -77,5 +79,54 @@ func TestWriteAndReadJSON(t *testing.T) {
 	}
 	if !errors.Is(err, os.ErrNotExist) {
 		t.Errorf("Expected error wrapping os.ErrNotExist, got: %v", err)
+	}
+}
+
+func TestAppendLocalUsage(t *testing.T) {
+	tempDir, err := os.MkdirTemp("", "statusline-append-test-*")
+	if err != nil {
+		t.Fatalf("Failed to create temp directory: %v", err)
+	}
+	defer os.RemoveAll(tempDir)
+
+	t.Setenv("ANTIGRAVITY_CACHE_DIR", tempDir)
+
+	convID := "conv-xyz-123"
+	modelID := "gemini-3.5-flash"
+
+	// 1. First write
+	err = AppendLocalUsage(convID, modelID, 100, 50, 20, 1000, 300)
+	if err != nil {
+		t.Fatalf("Expected no error on first append, got: %v", err)
+	}
+
+	// 2. Duplicate write (same totals)
+	err = AppendLocalUsage(convID, modelID, 100, 50, 20, 1000, 300)
+	if err != nil {
+		t.Fatalf("Expected no error on duplicate append, got: %v", err)
+	}
+
+	// 3. New write (different totals)
+	err = AppendLocalUsage(convID, modelID, 200, 80, 40, 1200, 340)
+	if err != nil {
+		t.Fatalf("Expected no error on new append, got: %v", err)
+	}
+
+	// Let's read the lines of the session log file
+	dateStr := time.Now().Format("2006-01-02")
+	expectedPath := filepath.Join(tempDir, "usage_"+convID+"_"+dateStr+".jsonl")
+
+	if _, err := os.Stat(expectedPath); os.IsNotExist(err) {
+		t.Fatalf("Expected session log file to exist at %s, but it does not", expectedPath)
+	}
+
+	contentBytes, err := os.ReadFile(expectedPath)
+	if err != nil {
+		t.Fatalf("Failed to read session log: %v", err)
+	}
+
+	lines := strings.Split(strings.TrimSpace(string(contentBytes)), "\n")
+	if len(lines) != 2 {
+		t.Errorf("Expected exactly 2 lines in session log (the duplicate should be deduplicated), got %d: %q", len(lines), lines)
 	}
 }

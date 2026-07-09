@@ -2,7 +2,6 @@ package layout
 
 import (
 	"fmt"
-	"math"
 	"strings"
 	"time"
 
@@ -98,33 +97,25 @@ func RenderStatusLine(
 		}
 	} else {
 		var suffix string
-		if apiUsage.Status == "auth_error" {
-			suffix = " [Auth Err]"
-		} else if apiUsage.Status == "network_error" {
-			suffix = " [Offline]"
-		} else {
-			parsedTime, parseErr := time.Parse(time.RFC3339, apiUsage.LastPollTime)
-			if parseErr == nil {
-				age := now.Sub(parsedTime)
-				minutes := int(math.Round(age.Minutes()))
-				if minutes < 0 {
-					minutes = 0
-				}
-				if age >= 15*time.Minute {
-					if payload.TerminalWidth >= 85 {
-						suffix = fmt.Sprintf(" (%dm ago ⚠️)", minutes)
-					} else {
-						suffix = " ⚠️"
-					}
-				} else {
-					if payload.TerminalWidth >= 85 {
-						suffix = fmt.Sprintf(" (%dm ago)", minutes)
-					}
-				}
+		stale := false
+		parsedTime, parseErr := time.Parse(time.RFC3339, apiUsage.LastPollTime)
+		if parseErr == nil {
+			if now.Sub(parsedTime) >= 5*time.Minute {
+				stale = true
 			}
 		}
 
-		if payload.TerminalWidth < 60 && (apiUsage.Status == "auth_error" || apiUsage.Status == "network_error" || suffix == " ⚠️") {
+		if stale {
+			suffix = " [Daemon Dead]"
+		} else if apiUsage.Status == "auth_error" {
+			suffix = " [Auth Err]"
+		} else if apiUsage.Status == "network_error" {
+			suffix = " [Offline]"
+		} else if apiUsage.Status != "success" && apiUsage.Status != "" {
+			suffix = " [Daemon Err]"
+		}
+
+		if payload.TerminalWidth < 60 && suffix != "" {
 			todaySegment = fmt.Sprintf("~$%.2f%s", apiUsage.TodayCostUSD, suffix)
 		} else if payload.TerminalWidth < 60 {
 			todaySegment = fmt.Sprintf("Today: ~$%.2f", apiUsage.TodayCostUSD)

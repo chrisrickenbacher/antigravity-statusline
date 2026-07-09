@@ -65,6 +65,12 @@ fi
 
 rm -f "${BIN_DIR}/statusline-daemon"
 
+# 2c. Legacy Log & State Migration
+echo "Migrating files and cleaning up obsolete cache artifacts..."
+rm -f "${CACHE_DIR}/local_usage_"*.jsonl
+rm -f "${CACHE_DIR}/last_logged_turn.json"
+rm -f "${CACHE_DIR}/last_logged_turns.json"
+
 # 3. Precompiled Asset Fetching & Atomic Overwrite
 if [[ -f "./releases/statusline-${TARGET_SUFFIX}" && -f "./releases/agy-statusline-daemon-${TARGET_SUFFIX}" ]]; then
   echo "Found local compiled assets in releases/. Installing directly..."
@@ -88,37 +94,12 @@ chmod +x "${BIN_DIR}/statusline" "${BIN_DIR}/agy-statusline-daemon"
 echo "Binaries safely installed in ${BIN_DIR}"
 
 # 4. Daemon Scheduler Configuration & Reloading
-GCP_ENV=""
-if [[ -n "${GOOGLE_APPLICATION_CREDENTIALS:-}" ]]; then
-  GCP_ENV="GOOGLE_APPLICATION_CREDENTIALS=${GOOGLE_APPLICATION_CREDENTIALS}"
-fi
-
-PROJECT_ENV=""
-if [[ -n "${GCP_PROJECT_ID:-}" ]]; then
-  PROJECT_ENV="GCP_PROJECT_ID=${GCP_PROJECT_ID}"
-elif [[ -n "${GOOGLE_CLOUD_PROJECT:-}" ]]; then
-  PROJECT_ENV="GCP_PROJECT_ID=${GOOGLE_CLOUD_PROJECT}"
-fi
-
 if [[ "${PLATFORM_OS}" == "darwin" ]]; then
   PLIST_DIR="${HOME}/Library/LaunchAgents"
   PLIST_PATH="${PLIST_DIR}/com.antigravity.agy-statusline-daemon.plist"
   mkdir -p "${PLIST_DIR}"
 
   echo "Configuring macOS launchd service..."
-
-  ENV_XML=""
-  if [[ -n "${GCP_ENV}" || -n "${PROJECT_ENV}" ]]; then
-    ENV_XML="<key>EnvironmentVariables</key><dict>"
-    if [[ -n "${GCP_ENV}" ]]; then
-      ENV_XML="${ENV_XML}<key>GOOGLE_APPLICATION_CREDENTIALS</key><string>${GOOGLE_APPLICATION_CREDENTIALS}</string>"
-    fi
-    if [[ -n "${PROJECT_ENV}" ]]; then
-      VAL="${GCP_PROJECT_ID:-${GOOGLE_CLOUD_PROJECT}}"
-      ENV_XML="${ENV_XML}<key>GCP_PROJECT_ID</key><string>${VAL}</string>"
-    fi
-    ENV_XML="${ENV_XML}</dict>"
-  fi
 
   cat <<EOF > "${PLIST_PATH}"
 <?xml version="1.0" encoding="UTF-8"?>
@@ -132,14 +113,13 @@ if [[ "${PLATFORM_OS}" == "darwin" ]]; then
         <string>${BIN_DIR}/agy-statusline-daemon</string>
     </array>
     <key>StartInterval</key>
-    <integer>300</integer>
+    <integer>60</integer>
     <key>RunAtLoad</key>
     <true/>
     <key>StandardErrorPath</key>
     <string>${CACHE_DIR}/daemon-err.log</string>
     <key>StandardOutPath</key>
     <string>${CACHE_DIR}/daemon-out.log</string>
-    ${ENV_XML}
 </dict>
 </plist>
 EOF
@@ -154,16 +134,6 @@ elif [[ "${PLATFORM_OS}" == "linux" ]]; then
 
   echo "Configuring Linux systemd user service..."
 
-  SERVICE_ENV=""
-  if [[ -n "${GCP_ENV}" ]]; then
-    SERVICE_ENV="Environment=\"GOOGLE_APPLICATION_CREDENTIALS=${GOOGLE_APPLICATION_CREDENTIALS}\""
-  fi
-  if [[ -n "${PROJECT_ENV}" ]]; then
-    VAL="${GCP_PROJECT_ID:-${GOOGLE_CLOUD_PROJECT}}"
-    SERVICE_ENV="${SERVICE_ENV}
-Environment=\"GCP_PROJECT_ID=${VAL}\""
-  fi
-
   cat <<EOF > "${SYSTEMD_DIR}/antigravity-agy-statusline.service"
 [Unit]
 Description=Antigravity Statusline Billing Daemon
@@ -172,7 +142,6 @@ After=network.target
 [Service]
 Type=simple
 ExecStart=${BIN_DIR}/agy-statusline-daemon
-${SERVICE_ENV}
 
 [Install]
 WantedBy=default.target
@@ -180,10 +149,10 @@ EOF
 
   cat <<EOF > "${SYSTEMD_DIR}/antigravity-agy-statusline.timer"
 [Unit]
-Description=Run Antigravity Statusline Billing Daemon every 5 minutes
+Description=Run Antigravity Statusline Billing Daemon every 1 minute
 
 [Timer]
-OnCalendar=*:0/5
+OnCalendar=minutely
 Persistent=true
 
 [Install]
