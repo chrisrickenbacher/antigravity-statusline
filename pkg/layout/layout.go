@@ -74,10 +74,10 @@ func RenderStatusLine(
 
 	var turnCostStr, sessCostStr string
 	if pricingAvailable {
-		turnCost := pricing.CalculateCost(payload.ContextWindow.CurrentUsage.InputTokens, payload.ContextWindow.CurrentUsage.OutputTokens, rates)
-		sessCost := pricing.CalculateCost(payload.ContextWindow.TotalInputTokens, payload.ContextWindow.TotalOutputTokens, rates)
-		turnCostStr = fmt.Sprintf("$%.4f", turnCost)
-		sessCostStr = fmt.Sprintf("$%.4f", sessCost)
+		turnCost := pricing.CalculateCost(payload.ContextWindow.CurrentUsage.InputTokens, payload.ContextWindow.CurrentUsage.CachedInputTokens, payload.ContextWindow.CurrentUsage.OutputTokens, rates)
+		sessCost := pricing.CalculateCost(payload.ContextWindow.TotalInputTokens, payload.ContextWindow.TotalCachedTokens, payload.ContextWindow.TotalOutputTokens, rates)
+		turnCostStr = fmt.Sprintf("~$%.4f", turnCost)
+		sessCostStr = fmt.Sprintf("~$%.4f", sessCost)
 	} else {
 		turnCostStr = "[No Pricing]"
 		sessCostStr = "[No Pricing]"
@@ -125,11 +125,11 @@ func RenderStatusLine(
 		}
 
 		if payload.TerminalWidth < 60 && (apiUsage.Status == "auth_error" || apiUsage.Status == "network_error" || suffix == " ⚠️") {
-			todaySegment = fmt.Sprintf("$%.2f%s", apiUsage.TodayCostUSD, suffix)
+			todaySegment = fmt.Sprintf("~$%.2f%s", apiUsage.TodayCostUSD, suffix)
 		} else if payload.TerminalWidth < 60 {
-			todaySegment = fmt.Sprintf("Today: $%.2f", apiUsage.TodayCostUSD)
+			todaySegment = fmt.Sprintf("Today: ~$%.2f", apiUsage.TodayCostUSD)
 		} else {
-			todaySegment = fmt.Sprintf("Today: $%.2f%s", apiUsage.TodayCostUSD, suffix)
+			todaySegment = fmt.Sprintf("Today: ~$%.2f%s", apiUsage.TodayCostUSD, suffix)
 		}
 	}
 
@@ -163,8 +163,8 @@ func RenderStatusLine(
 	if payload.TerminalWidth >= 85 {
 		var sessPart string
 		if pricingAvailable {
-			sessCostVal := pricing.CalculateCost(payload.ContextWindow.TotalInputTokens, payload.ContextWindow.TotalOutputTokens, rates)
-			sessPart = fmt.Sprintf("Sess: %s/%s ($%.3f)", FormatTokens(payload.ContextWindow.TotalInputTokens), FormatTokens(payload.ContextWindow.TotalOutputTokens), sessCostVal)
+			sessCostVal := pricing.CalculateCost(payload.ContextWindow.TotalInputTokens, payload.ContextWindow.TotalCachedTokens, payload.ContextWindow.TotalOutputTokens, rates)
+			sessPart = fmt.Sprintf("Sess: %s/%s (~$%.3f)", FormatTokens(payload.ContextWindow.TotalInputTokens), FormatTokens(payload.ContextWindow.TotalOutputTokens), sessCostVal)
 		} else {
 			sessPart = fmt.Sprintf("Sess: %s/%s [No Pricing]", FormatTokens(payload.ContextWindow.TotalInputTokens), FormatTokens(payload.ContextWindow.TotalOutputTokens))
 		}

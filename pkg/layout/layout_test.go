@@ -99,7 +99,7 @@ func TestRenderStatusLine(t *testing.T) {
 		// 1. WIDE
 		mockPayload.TerminalWidth = 120
 		resWide := RenderStatusLine(mockPayload, mockPriceCache, apiUsage, nil, now)
-		expectedWide := "\033[32m🟢 idle\033[0m │ Flash │ Turn: +1.2K/250 ($0.0002) │ Sess: 45K/3.1K ($0.0043) │ Today: $0.12 (2m ago) │ Ctx: 4.8%"
+		expectedWide := "\033[32m🟢 idle\033[0m │ Flash │ Turn: +1.2K/250 (~$0.0002) │ Sess: 45K/3.1K (~$0.0043) │ Today: ~$0.12 (2m ago) │ Ctx: 4.8%"
 		if resWide != expectedWide {
 			t.Errorf("WIDE expected:\n%q\ngot:\n%q", expectedWide, resWide)
 		}
@@ -107,7 +107,7 @@ func TestRenderStatusLine(t *testing.T) {
 		// 1.5. WIDTH 110 (Wide without Ctx)
 		mockPayload.TerminalWidth = 110
 		resWide110 := RenderStatusLine(mockPayload, mockPriceCache, apiUsage, nil, now)
-		expectedWide110 := "\033[32m🟢 idle\033[0m │ Flash │ Turn: +1.2K/250 ($0.0002) │ Sess: 45K/3.1K ($0.0043) │ Today: $0.12 (2m ago)"
+		expectedWide110 := "\033[32m🟢 idle\033[0m │ Flash │ Turn: +1.2K/250 (~$0.0002) │ Sess: 45K/3.1K (~$0.0043) │ Today: ~$0.12 (2m ago)"
 		if resWide110 != expectedWide110 {
 			t.Errorf("WIDTH 110 expected:\n%q\ngot:\n%q", expectedWide110, resWide110)
 		}
@@ -115,7 +115,7 @@ func TestRenderStatusLine(t *testing.T) {
 		// 2. STANDARD
 		mockPayload.TerminalWidth = 100
 		resStd := RenderStatusLine(mockPayload, mockPriceCache, apiUsage, nil, now)
-		expectedStd := "\033[32m🟢 idle\033[0m │ Flash │ Sess: 45K/3.1K ($0.004) │ Today: $0.12 (2m ago)"
+		expectedStd := "\033[32m🟢 idle\033[0m │ Flash │ Sess: 45K/3.1K (~$0.004) │ Today: ~$0.12 (2m ago)"
 		if resStd != expectedStd {
 			t.Errorf("STANDARD expected:\n%q\ngot:\n%q", expectedStd, resStd)
 		}
@@ -123,7 +123,7 @@ func TestRenderStatusLine(t *testing.T) {
 		// 3. COMPACT
 		mockPayload.TerminalWidth = 70
 		resCmp := RenderStatusLine(mockPayload, mockPriceCache, apiUsage, nil, now)
-		expectedCmp := "\033[32m🟢 idle\033[0m │ Sess: 45K │ Today: $0.12"
+		expectedCmp := "\033[32m🟢 idle\033[0m │ Sess: 45K │ Today: ~$0.12"
 		if resCmp != expectedCmp {
 			t.Errorf("COMPACT expected:\n%q\ngot:\n%q", expectedCmp, resCmp)
 		}
@@ -131,7 +131,7 @@ func TestRenderStatusLine(t *testing.T) {
 		// 4. MINIMAL
 		mockPayload.TerminalWidth = 50
 		resMin := RenderStatusLine(mockPayload, mockPriceCache, apiUsage, nil, now)
-		expectedMin := "\033[32m🟢 idle\033[0m │ Today: $0.12"
+		expectedMin := "\033[32m🟢 idle\033[0m │ Today: ~$0.12"
 		if resMin != expectedMin {
 			t.Errorf("MINIMAL expected:\n%q\ngot:\n%q", expectedMin, resMin)
 		}
@@ -151,28 +151,28 @@ func TestRenderStatusLine(t *testing.T) {
 		// 1. WIDE
 		mockPayload.TerminalWidth = 120
 		resWide := RenderStatusLine(mockPayload, mockPriceCache, apiUsage, nil, now)
-		if !strings.Contains(resWide, "Today: $0.12 (25m ago ⚠️)") {
+		if !strings.Contains(resWide, "Today: ~$0.12 (25m ago ⚠️)") {
 			t.Errorf("Expected stale warning in WIDE, got: %q", resWide)
 		}
 
 		// 2. STANDARD
 		mockPayload.TerminalWidth = 100
 		resStd := RenderStatusLine(mockPayload, mockPriceCache, apiUsage, nil, now)
-		if !strings.Contains(resStd, "Today: $0.12 (25m ago ⚠️)") {
+		if !strings.Contains(resStd, "Today: ~$0.12 (25m ago ⚠️)") {
 			t.Errorf("Expected stale warning in STANDARD, got: %q", resStd)
 		}
 
 		// 3. COMPACT
 		mockPayload.TerminalWidth = 70
 		resCmp := RenderStatusLine(mockPayload, mockPriceCache, apiUsage, nil, now)
-		if !strings.Contains(resCmp, "Today: $0.12 ⚠️") {
+		if !strings.Contains(resCmp, "Today: ~$0.12 ⚠️") {
 			t.Errorf("Expected stale warning in COMPACT, got: %q", resCmp)
 		}
 
 		// 4. MINIMAL
 		mockPayload.TerminalWidth = 50
 		resMin := RenderStatusLine(mockPayload, mockPriceCache, apiUsage, nil, now)
-		if !strings.Contains(resMin, "$0.12 ⚠️") {
+		if !strings.Contains(resMin, "~$0.12 ⚠️") {
 			t.Errorf("Expected stale warning in MINIMAL, got: %q", resMin)
 		}
 	})
@@ -210,13 +210,13 @@ func TestRenderStatusLine(t *testing.T) {
 
 		mockPayload.TerminalWidth = 120
 		resWide := RenderStatusLine(mockPayload, mockPriceCache, apiUsage, nil, now)
-		if !strings.Contains(resWide, "Today: $0.12 [Auth Err]") {
+		if !strings.Contains(resWide, "Today: ~$0.12 [Auth Err]") {
 			t.Errorf("Expected Auth Err in Today, got: %q", resWide)
 		}
 
 		mockPayload.TerminalWidth = 50
 		resMin := RenderStatusLine(mockPayload, mockPriceCache, apiUsage, nil, now)
-		if !strings.Contains(resMin, "$0.12 [Auth Err]") {
+		if !strings.Contains(resMin, "~$0.12 [Auth Err]") {
 			t.Errorf("Expected Auth Err in MINIMAL, got: %q", resMin)
 		}
 	})

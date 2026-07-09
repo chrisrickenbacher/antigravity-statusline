@@ -22,13 +22,15 @@ func GetDefaultPricing() (*PricingCache, error) {
 }
 
 type Rates struct {
-	InputRate  float64
-	OutputRate float64
+	InputRate       float64
+	CachedInputRate float64
+	OutputRate      float64
 }
 
 type ModelRate struct {
-	InputPricePer1M  float64 `json:"input_price_per_1m"`
-	OutputPricePer1M float64 `json:"output_price_per_1m"`
+	InputPricePer1M       float64 `json:"input_price_per_1m"`
+	CachedInputPricePer1M float64 `json:"cached_input_price_per_1m"`
+	OutputPricePer1M      float64 `json:"output_price_per_1m"`
 }
 
 type PricingCache struct {
@@ -36,7 +38,7 @@ type PricingCache struct {
 	Models      map[string]ModelRate `json:"models"`
 }
 
-func normalizeModelID(s string) string {
+func NormalizeModelID(s string) string {
 	s = strings.ToLower(s)
 	s = strings.ReplaceAll(s, "-", "")
 	s = strings.ReplaceAll(s, "_", "")
@@ -51,14 +53,24 @@ func ResolveRates(cache *PricingCache, modelID string) (Rates, error) {
 		return Rates{}, ErrNoPricingCache
 	}
 
-	id := normalizeModelID(modelID)
+	id := NormalizeModelID(modelID)
 
 	for modelKey, rate := range cache.Models {
-		keyNorm := normalizeModelID(modelKey)
+		keyNorm := NormalizeModelID(modelKey)
 		if strings.Contains(id, keyNorm) || strings.Contains(keyNorm, id) {
+			inputRate := rate.InputPricePer1M / 1e6
+			var cachedRate float64
+			if rate.CachedInputPricePer1M > 0 {
+				cachedRate = rate.CachedInputPricePer1M / 1e6
+			} else if strings.Contains(id, "gemini") {
+				cachedRate = inputRate * 0.1 // Default 90% discount for Gemini
+			} else {
+				cachedRate = inputRate // No caching discount by default
+			}
 			return Rates{
-				InputRate:  rate.InputPricePer1M / 1e6,
-				OutputRate: rate.OutputPricePer1M / 1e6,
+				InputRate:       inputRate,
+				CachedInputRate: cachedRate,
+				OutputRate:      rate.OutputPricePer1M / 1e6,
 			}, nil
 		}
 	}
@@ -66,6 +78,10 @@ func ResolveRates(cache *PricingCache, modelID string) (Rates, error) {
 	return Rates{}, ErrNoPricingCache
 }
 
-func CalculateCost(input, output int64, rates Rates) float64 {
-	return (float64(input) * rates.InputRate) + (float64(output) * rates.OutputRate)
+func CalculateCost(input, cached, output int64, rates Rates) float64 {
+	standard := input - cached
+	if standard < 0 {
+		standard = 0
+	}
+	return (float64(standard) * rates.InputRate) + (float64(cached) * rates.CachedInputRate) + (float64(output) * rates.OutputRate)
 }

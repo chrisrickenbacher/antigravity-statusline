@@ -14,12 +14,17 @@ func TestResolveRates(t *testing.T) {
 				OutputPricePer1M: 0.300,
 			},
 			"gemini-1.5-pro": {
-				InputPricePer1M:  1.250,
-				OutputPricePer1M: 5.000,
+				InputPricePer1M:       1.250,
+				CachedInputPricePer1M: 0.125,
+				OutputPricePer1M:      5.000,
 			},
 			"gemini-3.5-flash": {
 				InputPricePer1M:  0.075,
 				OutputPricePer1M: 0.300,
+			},
+			"claude-3-5-sonnet": {
+				InputPricePer1M:  3.000,
+				OutputPricePer1M: 15.000,
 			},
 		},
 	}
@@ -30,17 +35,34 @@ func TestResolveRates(t *testing.T) {
 			t.Fatalf("Expected no error, got: %v", err)
 		}
 		expectedInput := 1.250 / 1e6
+		expectedCached := 0.125 / 1e6
 		expectedOutput := 5.000 / 1e6
-		if rates.InputRate != expectedInput || rates.OutputRate != expectedOutput {
-			t.Errorf("Expected rates %f/%f, got %f/%f", expectedInput, expectedOutput, rates.InputRate, rates.OutputRate)
+		if rates.InputRate != expectedInput || rates.CachedInputRate != expectedCached || rates.OutputRate != expectedOutput {
+			t.Errorf("Expected rates %f/%f/%f, got %f/%f/%f", expectedInput, expectedCached, expectedOutput, rates.InputRate, rates.CachedInputRate, rates.OutputRate)
 		}
+	})
 
-		ratesUpper, err := ResolveRates(mockCache, "GEMINI-1.5-PRO")
+	t.Run("defaults to 10%% for gemini without explicit cached rate", func(t *testing.T) {
+		rates, err := ResolveRates(mockCache, "gemini-3.5-flash")
 		if err != nil {
 			t.Fatalf("Expected no error, got: %v", err)
 		}
-		if ratesUpper.InputRate != expectedInput || ratesUpper.OutputRate != expectedOutput {
-			t.Errorf("Expected rates %f/%f, got %f/%f", expectedInput, expectedOutput, ratesUpper.InputRate, ratesUpper.OutputRate)
+		expectedInput := 0.075 / 1e6
+		expectedCached := expectedInput * 0.1
+		if rates.CachedInputRate != expectedCached {
+			t.Errorf("Expected cached rate %f, got %f", expectedCached, rates.CachedInputRate)
+		}
+	})
+
+	t.Run("defaults to 100%% for non-gemini without explicit cached rate", func(t *testing.T) {
+		rates, err := ResolveRates(mockCache, "claude-3-5-sonnet")
+		if err != nil {
+			t.Fatalf("Expected no error, got: %v", err)
+		}
+		expectedInput := 3.000 / 1e6
+		expectedCached := expectedInput
+		if rates.CachedInputRate != expectedCached {
+			t.Errorf("Expected cached rate %f, got %f", expectedCached, rates.CachedInputRate)
 		}
 	})
 
@@ -85,12 +107,14 @@ func TestResolveRates(t *testing.T) {
 
 func TestCalculateCost(t *testing.T) {
 	rates := Rates{
-		InputRate:  0.075 / 1e6,
-		OutputRate: 0.300 / 1e6,
+		InputRate:       0.075 / 1e6,
+		CachedInputRate: 0.0075 / 1e6,
+		OutputRate:      0.300 / 1e6,
 	}
 
-	cost := CalculateCost(1000000, 2000000, rates)
-	expectedCost := 0.075 + 0.600
+	// 1M total input tokens, of which 800k are cached, and 2M output tokens
+	cost := CalculateCost(1000000, 800000, 2000000, rates)
+	expectedCost := (200000.0 * rates.InputRate) + (800000.0 * rates.CachedInputRate) + (2000000.0 * rates.OutputRate)
 	diff := cost - expectedCost
 	if diff < 0 {
 		diff = -diff

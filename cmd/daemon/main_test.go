@@ -3,7 +3,9 @@ package main
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
+	"time"
 )
 
 func TestResolveProjectID(t *testing.T) {
@@ -79,4 +81,89 @@ project = mock-gcloud-project-id
 			t.Errorf("Expected mock-gcloud-project-id, got %q", res)
 		}
 	})
+}
+
+func TestAggregateTodayLocalUsage(t *testing.T) {
+	tempCacheDir, err := os.MkdirTemp("", "cache-mock-*")
+	if err != nil {
+		t.Fatalf("Failed to create temp cache: %v", err)
+	}
+	defer os.RemoveAll(tempCacheDir)
+
+	localDate := "2026-07-09"
+	logFilename := "local_usage_" + localDate + ".jsonl"
+	logPath := filepath.Join(tempCacheDir, logFilename)
+
+	mockLines := []string{
+		`{"timestamp":"2026-07-09T08:00:00Z","model_id":"gemini-3.5-flash","input_tokens":1000,"output_tokens":300,"cached_input_tokens":800}`,
+		`{"timestamp":"2026-07-09T08:05:00Z","model_id":"Gemini 3.5 Flash","input_tokens":2000,"output_tokens":500,"cached_input_tokens":1500}`,
+		`{"timestamp":"2026-07-09T08:10:00Z","model_id":"gemini-1.5-pro","input_tokens":5000,"output_tokens":1000,"cached_input_tokens":4000}`,
+		`invalid_json_line_that_should_be_skipped`,
+		`{"timestamp":"2026-07-09T08:15:00Z","model_id":"gemini-1.5-pro","input_tokens":1000,"output_tokens":200,"cached_input_tokens":500}`,
+	}
+
+	err = os.WriteFile(logPath, []byte(strings.Join(mockLines, "\n")), 0644)
+	if err != nil {
+		t.Fatalf("Failed to write mock log: %v", err)
+	}
+
+	res, err := aggregateTodayLocalUsage(tempCacheDir, localDate)
+	if err != nil {
+		t.Fatalf("aggregateTodayLocalUsage failed: %v", err)
+	}
+
+	// Normalized model IDs are used as keys
+	flashKey := "gemini3.5flash"
+	proKey := "gemini1.5pro"
+
+	if val := res[flashKey]; val != 2300 {
+		t.Errorf("Expected 2300 cached tokens for flash, got %d", val)
+	}
+
+	if val := res[proKey]; val != 4500 {
+		t.Errorf("Expected 4500 cached tokens for pro, got %d", val)
+	}
+}
+
+func TestPruneOldLogs(t *testing.T) {
+	tempCacheDir, err := os.MkdirTemp("", "cache-mock-prune-*")
+	if err != nil {
+		t.Fatalf("Failed to create temp cache: %v", err)
+	}
+	defer os.RemoveAll(tempCacheDir)
+
+	now := time.Date(2026, 7, 9, 12, 0, 0, 0, time.UTC)
+
+	// Create today's log, 5-days-old log, and 10-days-old log
+	todayPath := filepath.Join(tempCacheDir, "local_usage_2026-07-09.jsonl")
+	recentPath := filepath.Join(tempCacheDir, "local_usage_2026-07-04.jsonl")
+	oldPath := filepath.Join(tempCacheDir, "local_usage_2026-06-25.jsonl")
+	otherFilePath := filepath.Join(tempCacheDir, "other_file.txt")
+
+	_ = os.WriteFile(todayPath, []byte("{}"), 0644)
+	_ = os.WriteFile(recentPath, []byte("{}"), 0644)
+	_ = os.WriteFile(oldPath, []byte("{}"), 0644)
+	_ = os.WriteFile(otherFilePath, []byte("{}"), 0644)
+
+	pruneOldLogs(tempCacheDir, now)
+
+	// verify today's log exists
+	if _, err := os.Stat(todayPath); os.IsNotExist(err) {
+		t.Error("Expected today's log to be preserved, but it was deleted")
+	}
+
+	// verify 5-days-old log exists
+	if _, err := os.Stat(recentPath); os.IsNotExist(err) {
+		t.Error("Expected recent log (5 days old) to be preserved, but it was deleted")
+	}
+
+	// verify other file is preserved
+	if _, err := os.Stat(otherFilePath); os.IsNotExist(err) {
+		t.Error("Expected other non-log file to be preserved, but it was deleted")
+	}
+
+	// verify 14-days-old log is deleted
+	if _, err := os.Stat(oldPath); !os.IsNotExist(err) {
+		t.Error("Expected 14-days-old log to be deleted, but it still exists")
+	}
 }

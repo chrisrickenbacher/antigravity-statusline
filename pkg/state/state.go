@@ -14,14 +14,16 @@ type ModelInfo struct {
 }
 
 type TokenUsage struct {
-	InputTokens  int64 `json:"input_tokens"`
-	OutputTokens int64 `json:"output_tokens"`
+	InputTokens       int64 `json:"input_tokens"`
+	OutputTokens      int64 `json:"output_tokens"`
+	CachedInputTokens int64 `json:"cached_input_tokens"`
 }
 
 type ContextWindow struct {
 	CurrentUsage        TokenUsage `json:"current_usage"`
 	TotalInputTokens    int64      `json:"total_input_tokens"`
 	TotalOutputTokens   int64      `json:"total_output_tokens"`
+	TotalCachedTokens   int64      `json:"total_cached_tokens"`
 	ContextWindowSize   int64      `json:"context_window_size"`
 	RemainingPercentage float64    `json:"remaining_percentage"`
 }
@@ -34,4 +36,5 @@ type ApiUsage struct {
 	TodayCostUSD      float64 `json:"today_cost_usd"`
 	TodayInputTokens  int64   `json:"today_input_tokens"`
 	TodayOutputTokens int64   `json:"today_output_tokens"`
+	CachingRatio      float64 `json:"caching_ratio"`
 }

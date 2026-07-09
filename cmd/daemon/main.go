@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bufio"
 	"context"
 	"encoding/json"
 	"flag"
@@ -160,7 +161,65 @@ type TokenStats struct {
 	TotalCost   float64
 }
 
-func queryMetric(ctx context.Context, client *monitoring.MetricClient, projectID string, metricType string, startTime, endTime time.Time, priceCache *pricing.PricingCache, isOutput bool) (TokenStats, error) {
+func pruneOldLogs(cacheDir string, now time.Time) {
+	files, err := os.ReadDir(cacheDir)
+	if err != nil {
+		return
+	}
+
+	cutoff := now.AddDate(0, 0, -7)
+
+	for _, file := range files {
+		if file.IsDir() {
+			continue
+		}
+		name := file.Name()
+		if strings.HasPrefix(name, "local_usage_") && strings.HasSuffix(name, ".jsonl") {
+			dateStr := strings.TrimSuffix(strings.TrimPrefix(name, "local_usage_"), ".jsonl")
+			parsedDate, err := time.Parse("2006-01-02", dateStr)
+			if err == nil && parsedDate.Before(cutoff) {
+				_ = os.Remove(filepath.Join(cacheDir, name))
+			}
+		}
+	}
+}
+
+func aggregateTodayLocalUsage(cacheDir string, localDate string) (map[string]int64, error) {
+	filename := fmt.Sprintf("local_usage_%s.jsonl", localDate)
+	filePath := filepath.Join(cacheDir, filename)
+
+	file, err := os.Open(filePath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return make(map[string]int64), nil
+		}
+		return nil, err
+	}
+	defer file.Close()
+
+	usageByModel := make(map[string]int64)
+	scanner := bufio.NewScanner(file)
+	for scanner.Scan() {
+		line := strings.TrimSpace(scanner.Text())
+		if line == "" {
+			continue
+		}
+
+		var entry struct {
+			ModelID           string `json:"model_id"`
+			CachedInputTokens int64  `json:"cached_input_tokens"`
+		}
+		if err := json.Unmarshal([]byte(line), &entry); err != nil {
+			continue
+		}
+		normalizedModel := pricing.NormalizeModelID(entry.ModelID)
+		usageByModel[normalizedModel] += entry.CachedInputTokens
+	}
+
+	return usageByModel, scanner.Err()
+}
+
+func queryMetric(ctx context.Context, client *monitoring.MetricClient, projectID string, metricType string, startTime, endTime time.Time, priceCache *pricing.PricingCache, isOutput bool, localCached map[string]int64) (TokenStats, error) {
 	typeValue := "input"
 	if isOutput {
 		typeValue = "output"
@@ -182,6 +241,9 @@ func queryMetric(ctx context.Context, client *monitoring.MetricClient, projectID
 
 	var stats TokenStats
 	it := client.ListTimeSeries(ctx, req)
+
+	gcpTokensByModel := make(map[string]int64)
+
 	for {
 		resp, err := it.Next()
 		if err == iterator.Done {
@@ -202,23 +264,43 @@ func queryMetric(ctx context.Context, client *monitoring.MetricClient, projectID
 			modelID = resp.Metric.Labels["model_id"]
 		}
 
-		rates, err := pricing.ResolveRates(priceCache, modelID)
-		rateAvailable := err == nil
+		normModel := pricing.NormalizeModelID(modelID)
 
+		var seriesTokens int64
 		for _, point := range resp.Points {
 			if point.Value == nil {
 				continue
 			}
-			val := point.Value.GetInt64Value()
-			stats.TotalTokens += val
+			seriesTokens += point.Value.GetInt64Value()
+		}
 
-			if rateAvailable {
-				if isOutput {
-					stats.TotalCost += float64(val) * rates.OutputRate
-				} else {
-					stats.TotalCost += float64(val) * rates.InputRate
-				}
+		stats.TotalTokens += seriesTokens
+
+		if isOutput {
+			rates, err := pricing.ResolveRates(priceCache, modelID)
+			if err == nil {
+				stats.TotalCost += float64(seriesTokens) * rates.OutputRate
 			}
+		} else {
+			gcpTokensByModel[normModel] += seriesTokens
+		}
+	}
+
+	if !isOutput {
+		for normModel, gcpInput := range gcpTokensByModel {
+			rates, err := pricing.ResolveRates(priceCache, normModel)
+			if err != nil {
+				continue
+			}
+
+			loggedCached := localCached[normModel]
+			cached := loggedCached
+			if cached > gcpInput {
+				cached = gcpInput
+			}
+			standard := gcpInput - cached
+
+			stats.TotalCost += (float64(standard) * rates.InputRate) + (float64(cached) * rates.CachedInputRate)
 		}
 	}
 
@@ -233,6 +315,21 @@ func main() {
 
 	if *cacheDirOverride != "" {
 		os.Setenv("ANTIGRAVITY_CACHE_DIR", *cacheDirOverride)
+	}
+
+	cacheDir, cacheDirErr := cache.GetCacheDir()
+	if cacheDirErr != nil {
+		fmt.Fprintf(os.Stderr, "failed to resolve cache directory: %v\n", cacheDirErr)
+		os.Exit(1)
+	}
+
+	pruneOldLogs(cacheDir, time.Now())
+
+	localDate := time.Now().Format("2006-01-02")
+	localCached, err := aggregateTodayLocalUsage(cacheDir, localDate)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "warning: failed to aggregate today's local caching logs: %v\n", err)
+		localCached = make(map[string]int64)
 	}
 
 	pricingCache, priceErr := syncPricing(*pricingURL)
@@ -268,16 +365,29 @@ func main() {
 
 	const metricType = "aiplatform.googleapis.com/publisher/online_serving/token_count"
 
-	inputStats, err := queryMetric(ctx, client, projectID, metricType, startTime, endTime, pricingCache, false)
+	inputStats, err := queryMetric(ctx, client, projectID, metricType, startTime, endTime, pricingCache, false, localCached)
 	if err != nil {
 		handleError(err)
 		os.Exit(1)
 	}
 
-	outputStats, err := queryMetric(ctx, client, projectID, metricType, startTime, endTime, pricingCache, true)
+	outputStats, err := queryMetric(ctx, client, projectID, metricType, startTime, endTime, pricingCache, true, localCached)
 	if err != nil {
 		handleError(err)
 		os.Exit(1)
+	}
+
+	var todayTotalCached int64
+	for _, cachedVal := range localCached {
+		todayTotalCached += cachedVal
+	}
+
+	var finalRatio float64
+	if inputStats.TotalTokens > 0 {
+		finalRatio = float64(todayTotalCached) / float64(inputStats.TotalTokens)
+		if finalRatio > 1.0 {
+			finalRatio = 1.0
+		}
 	}
 
 	apiUsage := state.ApiUsage{
@@ -288,6 +398,7 @@ func main() {
 		TodayCostUSD:      math.Round((inputStats.TotalCost+outputStats.TotalCost)*1e6) / 1e6, // round to 6 decimal places
 		TodayInputTokens:  inputStats.TotalTokens,
 		TodayOutputTokens: outputStats.TotalTokens,
+		CachingRatio:      finalRatio,
 	}
 
 	if err := cache.WriteJSON("api_usage.json", &apiUsage); err != nil {
