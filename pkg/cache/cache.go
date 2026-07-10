@@ -175,3 +175,42 @@ func AppendLocalUsage(convID, modelID string, input, cached, output, totalInput,
 
 	return nil
 }
+
+// GetSessionCachedTokens reads today's session log file and sums all cached input tokens.
+func GetSessionCachedTokens(convID string) (int64, error) {
+	if convID == "" {
+		return 0, nil
+	}
+
+	cacheDir, err := GetCacheDir()
+	if err != nil {
+		return 0, err
+	}
+
+	dateStr := time.Now().Format("2006-01-02")
+	filename := fmt.Sprintf("usage_%s_%s.jsonl", convID, dateStr)
+	filePath := filepath.Join(cacheDir, filename)
+
+	file, err := os.Open(filePath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return 0, nil
+		}
+		return 0, err
+	}
+	defer file.Close()
+
+	var totalCached int64
+	scanner := bufio.NewScanner(file)
+	for scanner.Scan() {
+		line := scanner.Text()
+		if line == "" {
+			continue
+		}
+		var entry LocalUsageEntry
+		if err := json.Unmarshal([]byte(line), &entry); err == nil {
+			totalCached += entry.CachedInputTokens
+		}
+	}
+	return totalCached, scanner.Err()
+}

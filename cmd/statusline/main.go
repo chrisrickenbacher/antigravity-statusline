@@ -35,6 +35,11 @@ func main() {
 		payload.ContextWindow.TotalOutputTokens,
 	)
 
+	// Since the CLI doesn't send total_cached_tokens, calculate it from session logs
+	if totalCached, err := cache.GetSessionCachedTokens(payload.ConversationID); err == nil {
+		payload.ContextWindow.TotalCachedTokens = totalCached
+	}
+
 	var priceCache pricing.PricingCache
 	var priceCachePtr *pricing.PricingCache
 	if err := cache.ReadJSON("pricing_cache.json", &priceCache); err == nil {

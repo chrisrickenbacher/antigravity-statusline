@@ -130,3 +130,54 @@ func TestAppendLocalUsage(t *testing.T) {
 		t.Errorf("Expected exactly 2 lines in session log (the duplicate should be deduplicated), got %d: %q", len(lines), lines)
 	}
 }
+
+func TestGetSessionCachedTokens(t *testing.T) {
+	tempDir, err := os.MkdirTemp("", "statusline-get-cached-test-*")
+	if err != nil {
+		t.Fatalf("Failed to create temp directory: %v", err)
+	}
+	defer os.RemoveAll(tempDir)
+
+	t.Setenv("ANTIGRAVITY_CACHE_DIR", tempDir)
+
+	convID := "conv-session-cached"
+	modelID := "gemini-3.5-flash"
+
+	// Check empty or non-existent file returns 0
+	cached, err := GetSessionCachedTokens(convID)
+	if err != nil {
+		t.Fatalf("Expected no error for empty session, got: %v", err)
+	}
+	if cached != 0 {
+		t.Errorf("Expected 0 cached tokens, got: %d", cached)
+	}
+
+	// Append multiple logs
+	err = AppendLocalUsage(convID, modelID, 100, 50, 20, 1000, 300)
+	if err != nil {
+		t.Fatalf("Append failure: %v", err)
+	}
+
+	err = AppendLocalUsage(convID, modelID, 200, 80, 40, 1200, 340)
+	if err != nil {
+		t.Fatalf("Append failure: %v", err)
+	}
+
+	// Total cached should be 50 + 80 = 130
+	cached, err = GetSessionCachedTokens(convID)
+	if err != nil {
+		t.Fatalf("Expected no error, got: %v", err)
+	}
+	if cached != 130 {
+		t.Errorf("Expected 130 cached tokens, got: %d", cached)
+	}
+
+	// Check that empty convID returns 0 without error
+	cached, err = GetSessionCachedTokens("")
+	if err != nil {
+		t.Fatalf("Expected no error for empty convID, got: %v", err)
+	}
+	if cached != 0 {
+		t.Errorf("Expected 0 cached tokens for empty convID, got: %d", cached)
+	}
+}

@@ -204,6 +204,7 @@ func main() {
 		TodayCostUSD:      math.Round(totalCost*1e6) / 1e6,
 		TodayInputTokens:  totalInput,
 		TodayOutputTokens: totalOutput,
+		TodayCachedTokens: totalCached,
 		CachingRatio:      ratio,
 	}
 
