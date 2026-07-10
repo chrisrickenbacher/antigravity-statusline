@@ -182,12 +182,28 @@ func main() {
 	}
 
 	var totalCost float64
+	modelsBreakdown := make(map[string]state.ModelUsage)
 
 	// 4. Calculate cost per model using pricing cache
 	for modelID, totals := range modelTotals {
+		var modelCost float64
 		rates, err := pricing.ResolveRates(pricingCache, modelID)
 		if err == nil {
-			totalCost += pricing.CalculateCost(totals.Input, totals.Cached, totals.Output, rates)
+			modelCost = pricing.CalculateCost(totals.Input, totals.Cached, totals.Output, rates)
+			totalCost += modelCost
+		}
+
+		nonCached := totals.Input - totals.Cached
+		if nonCached < 0 {
+			nonCached = 0
+		}
+
+		modelsBreakdown[modelID] = state.ModelUsage{
+			InputTokens:     totals.Input,
+			OutputTokens:    totals.Output,
+			CachedTokens:    totals.Cached,
+			NonCachedTokens: nonCached,
+			CostUSD:         math.Round(modelCost*1e6) / 1e6,
 		}
 	}
 
@@ -196,16 +212,23 @@ func main() {
 		ratio = float64(totalCached) / float64(totalInput)
 	}
 
+	globalNonCached := totalInput - totalCached
+	if globalNonCached < 0 {
+		globalNonCached = 0
+	}
+
 	apiUsage := state.ApiUsage{
-		GCPProjectID:      "local-usage",
-		LastPollTime:      now.Format(time.RFC3339),
-		Status:            status,
-		ErrorMessage:      errMsg,
-		TodayCostUSD:      math.Round(totalCost*1e6) / 1e6,
-		TodayInputTokens:  totalInput,
-		TodayOutputTokens: totalOutput,
-		TodayCachedTokens: totalCached,
-		CachingRatio:      ratio,
+		GCPProjectID:         "local-usage",
+		LastPollTime:         now.Format(time.RFC3339),
+		Status:               status,
+		ErrorMessage:         errMsg,
+		TodayCostUSD:         math.Round(totalCost*1e6) / 1e6,
+		TodayInputTokens:     totalInput,
+		TodayOutputTokens:    totalOutput,
+		TodayCachedTokens:    totalCached,
+		TodayNonCachedTokens: globalNonCached,
+		CachingRatio:         ratio,
+		Models:               modelsBreakdown,
 	}
 
 	_ = cache.WriteJSON("api_usage.json", &apiUsage)

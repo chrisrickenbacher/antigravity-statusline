@@ -38,10 +38,12 @@ func TestShortenModelName(t *testing.T) {
 		modelID     string
 		expected    string
 	}{
-		{"Gemini 3.5 Flash (High)", "gemini-3.5-flash", "Flash"},
-		{"Gemini 1.5 Pro", "gemini-1.5-pro", "Pro"},
-		{"Gemini 4.0 Ultra", "gemini-4.0-ultra", "Ultra"},
-		{"Custom Model", "custom-model", "Custom Model"},
+		{"Gemini 3.5 Flash (High)", "gemini-3.5-flash", "gemini-3.5-flash"},
+		{"Gemini 1.5 Pro", "gemini-1.5-pro", "gemini-1.5-pro"},
+		{"Gemini 4.0 Ultra", "gemini-4.0-ultra", "gemini-4.0-ultra"},
+		{"Custom Model", "custom-model", "custom-model"},
+		{"Custom Model Only", "", "Custom Model Only"},
+		{"", "", "unknown"},
 	}
 
 	for _, tc := range tests {
@@ -99,7 +101,7 @@ func TestRenderStatusLine(t *testing.T) {
 		// 1. WIDE
 		mockPayload.TerminalWidth = 120
 		resWide := RenderStatusLine(mockPayload, mockPriceCache, apiUsage, nil, now)
-		expectedWide := "\033[32m🟢 idle\033[0m │ Flash │ Turn: +1.2K/250 (~$0.0002) │ Sess: 45K/3.1K (~$0.0043) │ Today: ~$0.12 │ Ctx: 4.8%"
+		expectedWide := "\033[32m🟢 idle\033[0m │ gemini-3.5-flash │ Turn: +1.2K/250 (~$0.0002) │ Sess: 45K/3.1K (~$0.0043) │ Today: ~$0.12 │ Ctx: 4.8%"
 		if resWide != expectedWide {
 			t.Errorf("WIDE expected:\n%q\ngot:\n%q", expectedWide, resWide)
 		}
@@ -107,7 +109,7 @@ func TestRenderStatusLine(t *testing.T) {
 		// 1.5. WIDTH 110 (Wide without Ctx)
 		mockPayload.TerminalWidth = 110
 		resWide110 := RenderStatusLine(mockPayload, mockPriceCache, apiUsage, nil, now)
-		expectedWide110 := "\033[32m🟢 idle\033[0m │ Flash │ Turn: +1.2K/250 (~$0.0002) │ Sess: 45K/3.1K (~$0.0043) │ Today: ~$0.12"
+		expectedWide110 := "\033[32m🟢 idle\033[0m │ gemini-3.5-flash │ Turn: +1.2K/250 (~$0.0002) │ Sess: 45K/3.1K (~$0.0043) │ Today: ~$0.12"
 		if resWide110 != expectedWide110 {
 			t.Errorf("WIDTH 110 expected:\n%q\ngot:\n%q", expectedWide110, resWide110)
 		}
@@ -115,7 +117,7 @@ func TestRenderStatusLine(t *testing.T) {
 		// 2. STANDARD
 		mockPayload.TerminalWidth = 100
 		resStd := RenderStatusLine(mockPayload, mockPriceCache, apiUsage, nil, now)
-		expectedStd := "\033[32m🟢 idle\033[0m │ Flash │ Sess: 45K/3.1K (~$0.004) │ Today: ~$0.12"
+		expectedStd := "\033[32m🟢 idle\033[0m │ gemini-3.5-flash │ Sess: 45K/3.1K (~$0.004) │ Today: ~$0.12"
 		if resStd != expectedStd {
 			t.Errorf("STANDARD expected:\n%q\ngot:\n%q", expectedStd, resStd)
 		}
@@ -191,7 +193,7 @@ func TestRenderStatusLine(t *testing.T) {
 		// WIDE with nil priceCache
 		mockPayload.TerminalWidth = 120
 		resWide := RenderStatusLine(mockPayload, nil, apiUsage, nil, now)
-		expectedWide := "\033[32m🟢 idle\033[0m │ Flash │ Turn: +1.2K/250 [No Pricing] │ Sess: 45K/3.1K [No Pricing] │ Today: [No Pricing] │ Ctx: 4.8%"
+		expectedWide := "\033[32m🟢 idle\033[0m │ gemini-3.5-flash │ Turn: +1.2K/250 [No Pricing] │ Sess: 45K/3.1K [No Pricing] │ Today: [No Pricing] │ Ctx: 4.8%"
 		if resWide != expectedWide {
 			t.Errorf("WIDE expected:\n%q\ngot:\n%q", expectedWide, resWide)
 		}

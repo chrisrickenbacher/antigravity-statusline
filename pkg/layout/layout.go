@@ -24,21 +24,13 @@ func FormatTokens(tokens int64) string {
 }
 
 func ShortenModelName(displayName string, modelID string) string {
-	id := strings.ToLower(modelID)
-	disp := strings.ToLower(displayName)
-	if strings.Contains(id, "flash") || strings.Contains(disp, "flash") {
-		return "Flash"
-	}
-	if strings.Contains(id, "pro") || strings.Contains(disp, "pro") {
-		return "Pro"
-	}
-	if strings.Contains(id, "ultra") || strings.Contains(disp, "ultra") {
-		return "Ultra"
+	if modelID != "" {
+		return modelID
 	}
 	if displayName != "" {
 		return displayName
 	}
-	return modelID
+	return "unknown"
 }
 
 func RenderStatusLine(
