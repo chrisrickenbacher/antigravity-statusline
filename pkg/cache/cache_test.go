@@ -181,3 +181,54 @@ func TestGetSessionCachedTokens(t *testing.T) {
 		t.Errorf("Expected 0 cached tokens for empty convID, got: %d", cached)
 	}
 }
+
+func TestGetSessionTotals(t *testing.T) {
+	tempDir, err := os.MkdirTemp("", "statusline-get-totals-test-*")
+	if err != nil {
+		t.Fatalf("Failed to create temp directory: %v", err)
+	}
+	defer os.RemoveAll(tempDir)
+
+	t.Setenv("ANTIGRAVITY_CACHE_DIR", tempDir)
+
+	convID := "conv-session-totals"
+	modelID := "gemini-3.5-flash"
+
+	// Check empty or non-existent file returns 0
+	input, cached, output, err := GetSessionTotals(convID)
+	if err != nil {
+		t.Fatalf("Expected no error for empty session, got: %v", err)
+	}
+	if input != 0 || cached != 0 || output != 0 {
+		t.Errorf("Expected all 0s, got: input=%d, cached=%d, output=%d", input, cached, output)
+	}
+
+	// Append multiple logs
+	err = AppendLocalUsage(convID, modelID, 100, 50, 20, 1000, 300)
+	if err != nil {
+		t.Fatalf("Append failure: %v", err)
+	}
+
+	err = AppendLocalUsage(convID, modelID, 200, 80, 40, 1200, 340)
+	if err != nil {
+		t.Fatalf("Append failure: %v", err)
+	}
+
+	// Sums should be: input: 100+200=300, cached: 50+80=130, output: 20+40=60
+	input, cached, output, err = GetSessionTotals(convID)
+	if err != nil {
+		t.Fatalf("Expected no error, got: %v", err)
+	}
+	if input != 300 || cached != 130 || output != 60 {
+		t.Errorf("Expected (300, 130, 60), got: (%d, %d, %d)", input, cached, output)
+	}
+
+	// Check that empty convID returns 0 without error
+	input, cached, output, err = GetSessionTotals("")
+	if err != nil {
+		t.Fatalf("Expected no error for empty convID, got: %v", err)
+	}
+	if input != 0 || cached != 0 || output != 0 {
+		t.Errorf("Expected all 0s, got: (%d, %d, %d)", input, cached, output)
+	}
+}

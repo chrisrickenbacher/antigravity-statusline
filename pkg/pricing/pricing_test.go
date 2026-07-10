@@ -112,8 +112,8 @@ func TestCalculateCost(t *testing.T) {
 		OutputRate:      0.300 / 1e6,
 	}
 
-	// 1M total input tokens, of which 800k are cached, and 2M output tokens
-	cost := CalculateCost(1000000, 800000, 2000000, rates)
+	// 200k standard input tokens, 800k cached input tokens, and 2M output tokens
+	cost := CalculateCost(200000, 800000, 2000000, rates)
 	expectedCost := (200000.0 * rates.InputRate) + (800000.0 * rates.CachedInputRate) + (2000000.0 * rates.OutputRate)
 	diff := cost - expectedCost
 	if diff < 0 {

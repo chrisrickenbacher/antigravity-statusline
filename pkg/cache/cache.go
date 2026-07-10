@@ -178,13 +178,19 @@ func AppendLocalUsage(convID, modelID string, input, cached, output, totalInput,
 
 // GetSessionCachedTokens reads today's session log file and sums all cached input tokens.
 func GetSessionCachedTokens(convID string) (int64, error) {
+	_, cached, _, err := GetSessionTotals(convID)
+	return cached, err
+}
+
+// GetSessionTotals reads today's session log file and sums all input, cached, and output tokens.
+func GetSessionTotals(convID string) (int64, int64, int64, error) {
 	if convID == "" {
-		return 0, nil
+		return 0, 0, 0, nil
 	}
 
 	cacheDir, err := GetCacheDir()
 	if err != nil {
-		return 0, err
+		return 0, 0, 0, err
 	}
 
 	dateStr := time.Now().Format("2006-01-02")
@@ -194,13 +200,13 @@ func GetSessionCachedTokens(convID string) (int64, error) {
 	file, err := os.Open(filePath)
 	if err != nil {
 		if os.IsNotExist(err) {
-			return 0, nil
+			return 0, 0, 0, nil
 		}
-		return 0, err
+		return 0, 0, 0, err
 	}
 	defer file.Close()
 
-	var totalCached int64
+	var totalInput, totalCached, totalOutput int64
 	scanner := bufio.NewScanner(file)
 	for scanner.Scan() {
 		line := scanner.Text()
@@ -209,8 +215,10 @@ func GetSessionCachedTokens(convID string) (int64, error) {
 		}
 		var entry LocalUsageEntry
 		if err := json.Unmarshal([]byte(line), &entry); err == nil {
+			totalInput += entry.InputTokens
 			totalCached += entry.CachedInputTokens
+			totalOutput += entry.OutputTokens
 		}
 	}
-	return totalCached, scanner.Err()
+	return totalInput, totalCached, totalOutput, scanner.Err()
 }

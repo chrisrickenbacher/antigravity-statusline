@@ -79,9 +79,6 @@ func ResolveRates(cache *PricingCache, modelID string) (Rates, error) {
 }
 
 func CalculateCost(input, cached, output int64, rates Rates) float64 {
-	standard := input - cached
-	if standard < 0 {
-		standard = 0
-	}
-	return (float64(standard) * rates.InputRate) + (float64(cached) * rates.CachedInputRate) + (float64(output) * rates.OutputRate)
+	return (float64(input) * rates.InputRate) + (float64(cached) * rates.CachedInputRate) + (float64(output) * rates.OutputRate)
 }
+
