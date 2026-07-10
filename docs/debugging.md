@@ -34,7 +34,7 @@ The daemon runs as a systemd user service. Its logs are collected by the standar
 You can run both binaries directly from the terminal to bypass schedulers and view direct stdout/stderr outputs.
 
 ### Debugging the Daemon Interactively
-Run the binary directly. It will attempt to poll GCP Monitoring and fetch pricing, printing any warnings or errors immediately to stderr:
+Run the binary directly. It will attempt to parse all of today's session logs and fetch pricing, printing any warnings or errors immediately to stderr:
 ```bash
 ~/.gemini/antigravity-cli/bin/agy-statusline-daemon
 ```
@@ -69,5 +69,5 @@ The renderer and daemon communicate through JSON state files stored inside:
 `~/.gemini/antigravity-cli/cache/`
 
 Ensure these files exist, are valid JSON, and check their internal metadata for errors:
-* **`api_usage.json`**: Contains today's API billing stats and any GCP monitoring `network_error` or `auth_error` messages.
+* **`api_usage.json`**: Contains today's aggregated model stats and billing metrics calculated by the daemon.
 * **`pricing_cache.json`**: Stores cached model pricing configurations.

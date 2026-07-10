@@ -60,6 +60,18 @@ func syncPricing(pricingURL string) (*pricing.PricingCache, error) {
 		return nil, err
 	}
 
+	// Merge fetched rates with local embedded defaults for missing fields (like CachedInputPricePer1M)
+	if embedded, err := pricing.GetDefaultPricing(); err == nil {
+		for name, fetchedModel := range fetched.Models {
+			if fetchedModel.CachedInputPricePer1M == 0 {
+				if embeddedModel, ok := embedded.Models[name]; ok && embeddedModel.CachedInputPricePer1M > 0 {
+					fetchedModel.CachedInputPricePer1M = embeddedModel.CachedInputPricePer1M
+					fetched.Models[name] = fetchedModel
+				}
+			}
+		}
+	}
+
 	fetched.LastFetched = time.Now().Format(time.RFC3339)
 	_ = cache.WriteJSON("pricing_cache.json", &fetched)
 	return &fetched, nil
@@ -169,12 +181,16 @@ func main() {
 
 	// 2. Sync pricing (checks if local cached is older than 24h)
 	pricingCache, _ := syncPricing(*pricingURL)
+	if pricingCache == nil {
+		// Fallback to embedded default pricing if sync failed and no cache exists
+		pricingCache, _ = pricing.GetDefaultPricing()
+	}
 
 	status := "success"
 	var errMsg string
 
 	// 3. Scan all session files for today using helper
-	modelTotals, totalInput, totalCached, totalOutput, err := aggregateSessionLogs(cacheDir, localDate)
+	modelTotals, _, _, _, err := aggregateSessionLogs(cacheDir, localDate)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "failed to aggregate session logs: %v\n", err)
 		status = "error"
@@ -193,42 +209,20 @@ func main() {
 			totalCost += modelCost
 		}
 
-		nonCached := totals.Input - totals.Cached
-		if nonCached < 0 {
-			nonCached = 0
-		}
-
 		modelsBreakdown[modelID] = state.ModelUsage{
-			InputTokens:     totals.Input,
-			OutputTokens:    totals.Output,
-			CachedTokens:    totals.Cached,
-			NonCachedTokens: nonCached,
-			CostUSD:         math.Round(modelCost*1e6) / 1e6,
+			InputTokens:  totals.Input,
+			OutputTokens: totals.Output,
+			CachedTokens: totals.Cached,
+			CostUSD:      math.Round(modelCost*1e6) / 1e6,
 		}
-	}
-
-	var ratio float64
-	if totalInput > 0 {
-		ratio = float64(totalCached) / float64(totalInput)
-	}
-
-	globalNonCached := totalInput - totalCached
-	if globalNonCached < 0 {
-		globalNonCached = 0
 	}
 
 	apiUsage := state.ApiUsage{
-		GCPProjectID:         "local-usage",
-		LastPollTime:         now.Format(time.RFC3339),
-		Status:               status,
-		ErrorMessage:         errMsg,
-		TodayCostUSD:         math.Round(totalCost*1e6) / 1e6,
-		TodayInputTokens:     totalInput,
-		TodayOutputTokens:    totalOutput,
-		TodayCachedTokens:    totalCached,
-		TodayNonCachedTokens: globalNonCached,
-		CachingRatio:         ratio,
-		Models:               modelsBreakdown,
+		LastPollTime: now.Format(time.RFC3339),
+		Status:       status,
+		ErrorMessage: errMsg,
+		TodayCostUSD: math.Round(totalCost*1e6) / 1e6,
+		Models:       modelsBreakdown,
 	}
 
 	_ = cache.WriteJSON("api_usage.json", &apiUsage)

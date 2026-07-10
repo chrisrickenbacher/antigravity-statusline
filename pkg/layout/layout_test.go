@@ -89,13 +89,9 @@ func TestRenderStatusLine(t *testing.T) {
 
 	t.Run("Case 1: Healthy & Synchronized (Default State)", func(t *testing.T) {
 		apiUsage := &state.ApiUsage{
-			GCPProjectID:      "local-usage",
-			LastPollTime:      "2026-07-08T09:30:00Z", // 2 minutes ago
-			Status:            "success",
-			ErrorMessage:      "",
-			TodayCostUSD:      0.12,
-			TodayInputTokens:  1200000,
-			TodayOutputTokens: 250000,
+			LastPollTime: "2026-07-08T09:30:00Z", // 2 minutes ago
+			Status:       "success",
+			TodayCostUSD: 0.12,
 		}
 
 		// 1. WIDE
@@ -141,13 +137,9 @@ func TestRenderStatusLine(t *testing.T) {
 
 	t.Run("Case 2: Stale Cache Warning (Daemon Dead)", func(t *testing.T) {
 		apiUsage := &state.ApiUsage{
-			GCPProjectID:      "local-usage",
-			LastPollTime:      "2026-07-08T09:25:00Z", // 7 minutes ago (>= 5m)
-			Status:            "success",
-			ErrorMessage:      "",
-			TodayCostUSD:      0.12,
-			TodayInputTokens:  1200000,
-			TodayOutputTokens: 250000,
+			LastPollTime: "2026-07-08T09:25:00Z", // 7 minutes ago (>= 5m)
+			Status:       "success",
+			TodayCostUSD: 0.12,
 		}
 
 		// 1. WIDE
@@ -181,13 +173,9 @@ func TestRenderStatusLine(t *testing.T) {
 
 	t.Run("Case 3: Missing Pricing Cache", func(t *testing.T) {
 		apiUsage := &state.ApiUsage{
-			GCPProjectID:      "local-usage",
-			LastPollTime:      "2026-07-08T09:30:00Z",
-			Status:            "success",
-			ErrorMessage:      "",
-			TodayCostUSD:      0.12,
-			TodayInputTokens:  1200000,
-			TodayOutputTokens: 250000,
+			LastPollTime: "2026-07-08T09:30:00Z",
+			Status:       "success",
+			TodayCostUSD: 0.12,
 		}
 
 		// WIDE with nil priceCache
@@ -201,13 +189,10 @@ func TestRenderStatusLine(t *testing.T) {
 
 	t.Run("Case 4: Authentication Failure", func(t *testing.T) {
 		apiUsage := &state.ApiUsage{
-			GCPProjectID:      "local-usage",
-			LastPollTime:      "2026-07-08T09:30:00Z",
-			Status:            "auth_error",
-			ErrorMessage:      "GCP credentials missing or expired",
-			TodayCostUSD:      0.12,
-			TodayInputTokens:  1200000,
-			TodayOutputTokens: 250000,
+			LastPollTime: "2026-07-08T09:30:00Z",
+			Status:       "auth_error",
+			ErrorMessage: "GCP credentials missing or expired",
+			TodayCostUSD: 0.12,
 		}
 
 		mockPayload.TerminalWidth = 120
@@ -225,13 +210,10 @@ func TestRenderStatusLine(t *testing.T) {
 
 	t.Run("Case 5: General Daemon Error", func(t *testing.T) {
 		apiUsage := &state.ApiUsage{
-			GCPProjectID:      "local-usage",
-			LastPollTime:      "2026-07-08T09:30:00Z",
-			Status:            "error",
-			ErrorMessage:      "failed to parse session log",
-			TodayCostUSD:      0.12,
-			TodayInputTokens:  1200000,
-			TodayOutputTokens: 250000,
+			LastPollTime: "2026-07-08T09:30:00Z",
+			Status:       "error",
+			ErrorMessage: "failed to parse session log",
+			TodayCostUSD: 0.12,
 		}
 
 		mockPayload.TerminalWidth = 120

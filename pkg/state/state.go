@@ -29,24 +29,17 @@ type ContextWindow struct {
 }
 
 type ModelUsage struct {
-	InputTokens     int64   `json:"input_tokens"`
-	OutputTokens    int64   `json:"output_tokens"`
-	CachedTokens    int64   `json:"cached_tokens"`
-	NonCachedTokens int64   `json:"non_cached_tokens"`
-	CostUSD         float64 `json:"cost_usd"`
+	InputTokens  int64   `json:"input_tokens"`
+	OutputTokens int64   `json:"output_tokens"`
+	CachedTokens int64   `json:"cached_tokens"`
+	CostUSD      float64 `json:"cost_usd"`
 }
 
 type ApiUsage struct {
-	GCPProjectID         string                `json:"gcp_project_id"`
-	LastPollTime         string                `json:"last_poll_time"`
-	Status               string                `json:"status"`
-	ErrorMessage         string                `json:"error_message"`
-	TodayCostUSD         float64               `json:"today_cost_usd"`
-	TodayInputTokens     int64                 `json:"today_input_tokens"`      // Total input tokens (standard + cached)
-	TodayOutputTokens    int64                 `json:"today_output_tokens"`
-	TodayCachedTokens    int64                 `json:"today_cached_tokens"`
-	TodayNonCachedTokens int64                 `json:"today_non_cached_tokens"` // Explicit standard input tokens
-	CachingRatio         float64               `json:"caching_ratio"`
-	Models               map[string]ModelUsage `json:"models,omitempty"`        // Per-model aggregated breakdown
+	LastPollTime string                `json:"last_poll_time"`
+	Status       string                `json:"status"`
+	ErrorMessage string                `json:"error_message,omitempty"`
+	TodayCostUSD float64               `json:"today_cost_usd"`
+	Models       map[string]ModelUsage `json:"models,omitempty"`
 }
 

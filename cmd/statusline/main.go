@@ -44,6 +44,11 @@ func main() {
 	var priceCachePtr *pricing.PricingCache
 	if err := cache.ReadJSON("pricing_cache.json", &priceCache); err == nil {
 		priceCachePtr = &priceCache
+	} else {
+		if embedded, dErr := pricing.GetDefaultPricing(); dErr == nil {
+			priceCache = *embedded
+			priceCachePtr = &priceCache
+		}
 	}
 
 	var apiUsage state.ApiUsage
