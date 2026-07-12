@@ -83,7 +83,7 @@ func pruneOldLogs(cacheDir string, now time.Time) {
 		return
 	}
 
-	cutoff := now.AddDate(0, 0, -7)
+	cutoff := now.AddDate(0, 0, -2)
 
 	for _, file := range files {
 		if file.IsDir() {

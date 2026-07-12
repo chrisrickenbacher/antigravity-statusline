@@ -22,10 +22,10 @@ func TestPruneOldLogs(t *testing.T) {
 
 	now := time.Date(2026, 7, 9, 12, 0, 0, 0, time.UTC)
 
-	// Create today's log, 5-days-old log, and 10-days-old log
+	// Create today's log, 1-days-old log, and 5-days-old log
 	todayPath := filepath.Join(tempCacheDir, "usage_session1_2026-07-09.jsonl")
-	recentPath := filepath.Join(tempCacheDir, "usage_session2_2026-07-04.jsonl")
-	oldPath := filepath.Join(tempCacheDir, "usage_session3_2026-06-25.jsonl")
+	recentPath := filepath.Join(tempCacheDir, "usage_session2_2026-07-08.jsonl")
+	oldPath := filepath.Join(tempCacheDir, "usage_session3_2026-07-04.jsonl")
 	otherFilePath := filepath.Join(tempCacheDir, "other_file.txt")
 
 	_ = os.WriteFile(todayPath, []byte("{}"), 0644)
@@ -40,9 +40,9 @@ func TestPruneOldLogs(t *testing.T) {
 		t.Error("Expected today's log to be preserved, but it was deleted")
 	}
 
-	// verify 5-days-old log exists
+	// verify 1-days-old log exists
 	if _, err := os.Stat(recentPath); os.IsNotExist(err) {
-		t.Error("Expected recent log (5 days old) to be preserved, but it was deleted")
+		t.Error("Expected recent log (1 day old) to be preserved, but it was deleted")
 	}
 
 	// verify other file is preserved
@@ -50,9 +50,9 @@ func TestPruneOldLogs(t *testing.T) {
 		t.Error("Expected other non-log file to be preserved, but it was deleted")
 	}
 
-	// verify 14-days-old log is deleted
+	// verify 5-days-old log is deleted
 	if _, err := os.Stat(oldPath); !os.IsNotExist(err) {
-		t.Error("Expected 14-days-old log to be deleted, but it still exists")
+		t.Error("Expected 5-days-old log to be deleted, but it still exists")
 	}
 }
 
