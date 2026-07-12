@@ -109,8 +109,8 @@ type ModelTotals struct {
 	Output int64
 }
 
-func aggregateSessionLogs(cacheDir, localDate string) (map[string]*ModelTotals, int64, int64, int64, error) {
-	modelTotals := make(map[string]*ModelTotals)
+func aggregateSessionLogs(cacheDir, localDate string) (map[string]map[string]*ModelTotals, int64, int64, int64, error) {
+	projectModelTotals := make(map[string]map[string]*ModelTotals)
 	var totalInput, totalCached, totalOutput int64
 
 	pattern := filepath.Join(cacheDir, fmt.Sprintf("usage_*_%s.jsonl", localDate))
@@ -138,10 +138,21 @@ func aggregateSessionLogs(cacheDir, localDate string) (map[string]*ModelTotals, 
 			}
 
 			normModel := pricing.NormalizeModelID(entry.ModelID)
-			totals, exists := modelTotals[normModel]
+			projID := entry.ProjectID
+			if projID == "" {
+				projID = "default"
+			}
+
+			modelMap, exists := projectModelTotals[projID]
+			if !exists {
+				modelMap = make(map[string]*ModelTotals)
+				projectModelTotals[projID] = modelMap
+			}
+
+			totals, exists := modelMap[normModel]
 			if !exists {
 				totals = &ModelTotals{}
-				modelTotals[normModel] = totals
+				modelMap[normModel] = totals
 			}
 
 			totals.Input += entry.InputTokens
@@ -155,7 +166,7 @@ func aggregateSessionLogs(cacheDir, localDate string) (map[string]*ModelTotals, 
 		file.Close()
 	}
 
-	return modelTotals, totalInput, totalCached, totalOutput, nil
+	return projectModelTotals, totalInput, totalCached, totalOutput, nil
 }
 
 func main() {
@@ -190,30 +201,39 @@ func main() {
 	var errMsg string
 
 	// 3. Scan all session files for today using helper
-	modelTotals, _, _, _, err := aggregateSessionLogs(cacheDir, localDate)
+	projectModelTotals, _, _, _, err := aggregateSessionLogs(cacheDir, localDate)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "failed to aggregate session logs: %v\n", err)
 		status = "error"
 		errMsg = err.Error()
 	}
 
-	var totalCost float64
-	modelsBreakdown := make(map[string]state.ModelUsage)
+	projects := make(map[string]state.ProjectUsage)
 
 	// 4. Calculate cost per model using pricing cache
-	for modelID, totals := range modelTotals {
-		var modelCost float64
-		rates, err := pricing.ResolveRates(pricingCache, modelID)
-		if err == nil {
-			modelCost = pricing.CalculateCost(totals.Input, totals.Cached, totals.Output, rates)
-			totalCost += modelCost
+	for projID, modelTotals := range projectModelTotals {
+		var projTotalCost float64
+		modelsBreakdown := make(map[string]state.ModelUsage)
+
+		for modelID, totals := range modelTotals {
+			var modelCost float64
+			rates, err := pricing.ResolveRates(pricingCache, modelID)
+			if err == nil {
+				modelCost = pricing.CalculateCost(totals.Input, totals.Cached, totals.Output, rates)
+				projTotalCost += modelCost
+			}
+
+			modelsBreakdown[modelID] = state.ModelUsage{
+				InputTokens:  totals.Input,
+				OutputTokens: totals.Output,
+				CachedTokens: totals.Cached,
+				CostUSD:      math.Round(modelCost*1e6) / 1e6,
+			}
 		}
 
-		modelsBreakdown[modelID] = state.ModelUsage{
-			InputTokens:  totals.Input,
-			OutputTokens: totals.Output,
-			CachedTokens: totals.Cached,
-			CostUSD:      math.Round(modelCost*1e6) / 1e6,
+		projects[projID] = state.ProjectUsage{
+			TodayCostUSD: math.Round(projTotalCost*1e6) / 1e6,
+			Models:       modelsBreakdown,
 		}
 	}
 
@@ -221,8 +241,7 @@ func main() {
 		LastPollTime: now.Format(time.RFC3339),
 		Status:       status,
 		ErrorMessage: errMsg,
-		TodayCostUSD: math.Round(totalCost*1e6) / 1e6,
-		Models:       modelsBreakdown,
+		Projects:     projects,
 	}
 
 	_ = cache.WriteJSON("api_usage.json", &apiUsage)

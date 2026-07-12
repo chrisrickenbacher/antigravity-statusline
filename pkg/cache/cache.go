@@ -12,6 +12,7 @@ import (
 type LocalUsageEntry struct {
 	Timestamp         string `json:"timestamp"`
 	ModelID           string `json:"model_id"`
+	ProjectID         string `json:"project_id"`
 	InputTokens       int64  `json:"input_tokens"`
 	CachedInputTokens int64  `json:"cached_input_tokens"`
 	OutputTokens      int64  `json:"output_tokens"`
@@ -118,7 +119,7 @@ func ReadLastLine(filePath string) (string, error) {
 }
 
 // AppendLocalUsage logs the turn usage to usage_<conversation_id>_<YYYY-MM-DD>.jsonl.
-func AppendLocalUsage(convID, modelID string, input, cached, output, totalInput, totalOutput int64) error {
+func AppendLocalUsage(convID, modelID, projectID string, input, cached, output, totalInput, totalOutput int64) error {
 	if convID == "" {
 		return nil
 	}
@@ -156,6 +157,7 @@ func AppendLocalUsage(convID, modelID string, input, cached, output, totalInput,
 	entry := LocalUsageEntry{
 		Timestamp:         time.Now().Format(time.RFC3339),
 		ModelID:           modelID,
+		ProjectID:         projectID,
 		InputTokens:       input,
 		CachedInputTokens: cached,
 		OutputTokens:      output,

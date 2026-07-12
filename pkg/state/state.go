@@ -6,6 +6,8 @@ type StdinPayload struct {
 	ContextWindow  ContextWindow `json:"context_window"`
 	TerminalWidth  int           `json:"terminal_width"`
 	AgentState     string        `json:"agent_state"`
+	IsOAuth        bool          `json:"is_oauth"`
+	ProjectID      string        `json:"project_id"`
 }
 
 type ModelInfo struct {
@@ -35,11 +37,15 @@ type ModelUsage struct {
 	CostUSD      float64 `json:"cost_usd"`
 }
 
-type ApiUsage struct {
-	LastPollTime string                `json:"last_poll_time"`
-	Status       string                `json:"status"`
-	ErrorMessage string                `json:"error_message,omitempty"`
+type ProjectUsage struct {
 	TodayCostUSD float64               `json:"today_cost_usd"`
 	Models       map[string]ModelUsage `json:"models,omitempty"`
+}
+
+type ApiUsage struct {
+	LastPollTime string                  `json:"last_poll_time"`
+	Status       string                  `json:"status"`
+	ErrorMessage string                  `json:"error_message,omitempty"`
+	Projects     map[string]ProjectUsage `json:"projects"`
 }
 

@@ -61,7 +61,7 @@ func RenderStatusLine(
 	stateSegment := fmt.Sprintf("%s%s\033[0m", stateColor, stateText)
 
 	rates, err := pricing.ResolveRates(priceCache, payload.Model.ID)
-	pricingAvailable := err == nil
+	pricingAvailable := err == nil && !payload.IsOAuth
 
 	var turnCostStr, sessCostStr string
 	if pricingAvailable {
@@ -75,7 +75,9 @@ func RenderStatusLine(
 	}
 
 	var todaySegment string
-	if apiUsageErr != nil {
+	if payload.IsOAuth {
+		todaySegment = ""
+	} else if apiUsageErr != nil {
 		if payload.TerminalWidth < 60 {
 			todaySegment = "[No Cache]"
 		} else {
@@ -107,12 +109,21 @@ func RenderStatusLine(
 			suffix = " [Daemon Err]"
 		}
 
+		projID := payload.ProjectID
+		if projID == "" {
+			projID = "default"
+		}
+		var todayCost float64
+		if projUsage, ok := apiUsage.Projects[projID]; ok {
+			todayCost = projUsage.TodayCostUSD
+		}
+
 		if payload.TerminalWidth < 60 && suffix != "" {
-			todaySegment = fmt.Sprintf("~$%.2f%s", apiUsage.TodayCostUSD, suffix)
+			todaySegment = fmt.Sprintf("~$%.2f%s", todayCost, suffix)
 		} else if payload.TerminalWidth < 60 {
-			todaySegment = fmt.Sprintf("Today: ~$%.2f", apiUsage.TodayCostUSD)
+			todaySegment = fmt.Sprintf("Today: ~$%.2f", todayCost)
 		} else {
-			todaySegment = fmt.Sprintf("Today: ~$%.2f%s", apiUsage.TodayCostUSD, suffix)
+			todaySegment = fmt.Sprintf("Today: ~$%.2f%s", todayCost, suffix)
 		}
 	}
 
@@ -123,11 +134,17 @@ func RenderStatusLine(
 		if pricingAvailable {
 			turnPart = fmt.Sprintf("Turn: +%s/%s (%s)", FormatTokens(payload.ContextWindow.CurrentUsage.InputTokens), FormatTokens(payload.ContextWindow.CurrentUsage.OutputTokens), turnCostStr)
 			sessPart = fmt.Sprintf("Sess: %s/%s (%s)", FormatTokens(payload.ContextWindow.TotalInputTokens), FormatTokens(payload.ContextWindow.TotalOutputTokens), sessCostStr)
+		} else if payload.IsOAuth {
+			turnPart = fmt.Sprintf("Turn: +%s/%s", FormatTokens(payload.ContextWindow.CurrentUsage.InputTokens), FormatTokens(payload.ContextWindow.CurrentUsage.OutputTokens))
+			sessPart = fmt.Sprintf("Sess: %s/%s", FormatTokens(payload.ContextWindow.TotalInputTokens), FormatTokens(payload.ContextWindow.TotalOutputTokens))
 		} else {
 			turnPart = fmt.Sprintf("Turn: +%s/%s [No Pricing]", FormatTokens(payload.ContextWindow.CurrentUsage.InputTokens), FormatTokens(payload.ContextWindow.CurrentUsage.OutputTokens))
 			sessPart = fmt.Sprintf("Sess: %s/%s [No Pricing]", FormatTokens(payload.ContextWindow.TotalInputTokens), FormatTokens(payload.ContextWindow.TotalOutputTokens))
 		}
 		ctxPart := fmt.Sprintf("Ctx: %.1f%%", 100.0-payload.ContextWindow.RemainingPercentage)
+		if todaySegment == "" {
+			return fmt.Sprintf("%s │ %s │ %s │ %s │ %s", stateSegment, modelShort, turnPart, sessPart, ctxPart)
+		}
 		return fmt.Sprintf("%s │ %s │ %s │ %s │ %s │ %s", stateSegment, modelShort, turnPart, sessPart, todaySegment, ctxPart)
 	}
 
@@ -136,9 +153,15 @@ func RenderStatusLine(
 		if pricingAvailable {
 			turnPart = fmt.Sprintf("Turn: +%s/%s (%s)", FormatTokens(payload.ContextWindow.CurrentUsage.InputTokens), FormatTokens(payload.ContextWindow.CurrentUsage.OutputTokens), turnCostStr)
 			sessPart = fmt.Sprintf("Sess: %s/%s (%s)", FormatTokens(payload.ContextWindow.TotalInputTokens), FormatTokens(payload.ContextWindow.TotalOutputTokens), sessCostStr)
+		} else if payload.IsOAuth {
+			turnPart = fmt.Sprintf("Turn: +%s/%s", FormatTokens(payload.ContextWindow.CurrentUsage.InputTokens), FormatTokens(payload.ContextWindow.CurrentUsage.OutputTokens))
+			sessPart = fmt.Sprintf("Sess: %s/%s", FormatTokens(payload.ContextWindow.TotalInputTokens), FormatTokens(payload.ContextWindow.TotalOutputTokens))
 		} else {
 			turnPart = fmt.Sprintf("Turn: +%s/%s [No Pricing]", FormatTokens(payload.ContextWindow.CurrentUsage.InputTokens), FormatTokens(payload.ContextWindow.CurrentUsage.OutputTokens))
 			sessPart = fmt.Sprintf("Sess: %s/%s [No Pricing]", FormatTokens(payload.ContextWindow.TotalInputTokens), FormatTokens(payload.ContextWindow.TotalOutputTokens))
+		}
+		if todaySegment == "" {
+			return fmt.Sprintf("%s │ %s │ %s │ %s", stateSegment, modelShort, turnPart, sessPart)
 		}
 		return fmt.Sprintf("%s │ %s │ %s │ %s │ %s", stateSegment, modelShort, turnPart, sessPart, todaySegment)
 	}
@@ -148,16 +171,27 @@ func RenderStatusLine(
 		if pricingAvailable {
 			sessCostVal := pricing.CalculateCost(payload.ContextWindow.TotalInputTokens, payload.ContextWindow.TotalCachedTokens, payload.ContextWindow.TotalOutputTokens, rates)
 			sessPart = fmt.Sprintf("Sess: %s/%s (~$%.3f)", FormatTokens(payload.ContextWindow.TotalInputTokens), FormatTokens(payload.ContextWindow.TotalOutputTokens), sessCostVal)
+		} else if payload.IsOAuth {
+			sessPart = fmt.Sprintf("Sess: %s/%s", FormatTokens(payload.ContextWindow.TotalInputTokens), FormatTokens(payload.ContextWindow.TotalOutputTokens))
 		} else {
 			sessPart = fmt.Sprintf("Sess: %s/%s [No Pricing]", FormatTokens(payload.ContextWindow.TotalInputTokens), FormatTokens(payload.ContextWindow.TotalOutputTokens))
+		}
+		if todaySegment == "" {
+			return fmt.Sprintf("%s │ %s │ %s", stateSegment, modelShort, sessPart)
 		}
 		return fmt.Sprintf("%s │ %s │ %s │ %s", stateSegment, modelShort, sessPart, todaySegment)
 	}
 
 	if payload.TerminalWidth >= 60 {
 		sessPart := fmt.Sprintf("Sess: %s", FormatTokens(payload.ContextWindow.TotalInputTokens))
+		if todaySegment == "" {
+			return fmt.Sprintf("%s │ %s", stateSegment, sessPart)
+		}
 		return fmt.Sprintf("%s │ %s │ %s", stateSegment, sessPart, todaySegment)
 	}
 
+	if todaySegment == "" {
+		return stateSegment
+	}
 	return fmt.Sprintf("%s │ %s", stateSegment, todaySegment)
 }

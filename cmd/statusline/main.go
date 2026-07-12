@@ -28,6 +28,7 @@ func main() {
 	_ = cache.AppendLocalUsage(
 		payload.ConversationID,
 		payload.Model.ID,
+		payload.ProjectID,
 		payload.ContextWindow.CurrentUsage.InputTokens,
 		payload.ContextWindow.CurrentUsage.CachedInputTokens,
 		payload.ContextWindow.CurrentUsage.OutputTokens,

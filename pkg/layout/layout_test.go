@@ -91,7 +91,7 @@ func TestRenderStatusLine(t *testing.T) {
 		apiUsage := &state.ApiUsage{
 			LastPollTime: "2026-07-08T09:30:00Z", // 2 minutes ago
 			Status:       "success",
-			TodayCostUSD: 0.12,
+			Projects:     map[string]state.ProjectUsage{"default": {TodayCostUSD: 0.12}},
 		}
 
 		// 1. WIDE
@@ -139,7 +139,7 @@ func TestRenderStatusLine(t *testing.T) {
 		apiUsage := &state.ApiUsage{
 			LastPollTime: "2026-07-08T09:25:00Z", // 7 minutes ago (>= 5m)
 			Status:       "success",
-			TodayCostUSD: 0.12,
+			Projects:     map[string]state.ProjectUsage{"default": {TodayCostUSD: 0.12}},
 		}
 
 		// 1. WIDE
@@ -175,7 +175,7 @@ func TestRenderStatusLine(t *testing.T) {
 		apiUsage := &state.ApiUsage{
 			LastPollTime: "2026-07-08T09:30:00Z",
 			Status:       "success",
-			TodayCostUSD: 0.12,
+			Projects:     map[string]state.ProjectUsage{"default": {TodayCostUSD: 0.12}},
 		}
 
 		// WIDE with nil priceCache
@@ -192,7 +192,7 @@ func TestRenderStatusLine(t *testing.T) {
 			LastPollTime: "2026-07-08T09:30:00Z",
 			Status:       "auth_error",
 			ErrorMessage: "GCP credentials missing or expired",
-			TodayCostUSD: 0.12,
+			Projects:     map[string]state.ProjectUsage{"default": {TodayCostUSD: 0.12}},
 		}
 
 		mockPayload.TerminalWidth = 120
@@ -213,7 +213,7 @@ func TestRenderStatusLine(t *testing.T) {
 			LastPollTime: "2026-07-08T09:30:00Z",
 			Status:       "error",
 			ErrorMessage: "failed to parse session log",
-			TodayCostUSD: 0.12,
+			Projects:     map[string]state.ProjectUsage{"default": {TodayCostUSD: 0.12}},
 		}
 
 		mockPayload.TerminalWidth = 120

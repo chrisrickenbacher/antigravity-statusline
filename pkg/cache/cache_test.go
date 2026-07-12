@@ -95,19 +95,19 @@ func TestAppendLocalUsage(t *testing.T) {
 	modelID := "gemini-3.5-flash"
 
 	// 1. First write
-	err = AppendLocalUsage(convID, modelID, 100, 50, 20, 1000, 300)
+	err = AppendLocalUsage(convID, modelID, "test-project", 100, 50, 20, 1000, 300)
 	if err != nil {
 		t.Fatalf("Expected no error on first append, got: %v", err)
 	}
 
 	// 2. Duplicate write (same totals)
-	err = AppendLocalUsage(convID, modelID, 100, 50, 20, 1000, 300)
+	err = AppendLocalUsage(convID, modelID, "test-project", 100, 50, 20, 1000, 300)
 	if err != nil {
 		t.Fatalf("Expected no error on duplicate append, got: %v", err)
 	}
 
 	// 3. New write (different totals)
-	err = AppendLocalUsage(convID, modelID, 200, 80, 40, 1200, 340)
+	err = AppendLocalUsage(convID, modelID, "test-project", 200, 80, 40, 1200, 340)
 	if err != nil {
 		t.Fatalf("Expected no error on new append, got: %v", err)
 	}
@@ -153,12 +153,12 @@ func TestGetSessionCachedTokens(t *testing.T) {
 	}
 
 	// Append multiple logs
-	err = AppendLocalUsage(convID, modelID, 100, 50, 20, 1000, 300)
+	err = AppendLocalUsage(convID, modelID, "test-project", 100, 50, 20, 1000, 300)
 	if err != nil {
 		t.Fatalf("Append failure: %v", err)
 	}
 
-	err = AppendLocalUsage(convID, modelID, 200, 80, 40, 1200, 340)
+	err = AppendLocalUsage(convID, modelID, "test-project", 200, 80, 40, 1200, 340)
 	if err != nil {
 		t.Fatalf("Append failure: %v", err)
 	}
@@ -204,12 +204,12 @@ func TestGetSessionTotals(t *testing.T) {
 	}
 
 	// Append multiple logs
-	err = AppendLocalUsage(convID, modelID, 100, 50, 20, 1000, 300)
+	err = AppendLocalUsage(convID, modelID, "test-project", 100, 50, 20, 1000, 300)
 	if err != nil {
 		t.Fatalf("Append failure: %v", err)
 	}
 
-	err = AppendLocalUsage(convID, modelID, 200, 80, 40, 1200, 340)
+	err = AppendLocalUsage(convID, modelID, "test-project", 200, 80, 40, 1200, 340)
 	if err != nil {
 		t.Fatalf("Append failure: %v", err)
 	}

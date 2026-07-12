@@ -131,7 +131,7 @@ func TestAggregateSessionLogs(t *testing.T) {
 	flashKey := "gemini3.5flash"
 	proKey := "gemini1.5pro"
 
-	if flashTotals, ok := modelTotals[flashKey]; ok {
+	if flashTotals, ok := modelTotals["default"][flashKey]; ok {
 		if flashTotals.Input != 150 {
 			t.Errorf("expected flash input 150, got %d", flashTotals.Input)
 		}
@@ -145,7 +145,7 @@ func TestAggregateSessionLogs(t *testing.T) {
 		t.Errorf("missing aggregated model totals for key %q", flashKey)
 	}
 
-	if proTotals, ok := modelTotals[proKey]; ok {
+	if proTotals, ok := modelTotals["default"][proKey]; ok {
 		if proTotals.Input != 200 {
 			t.Errorf("expected pro input 200, got %d", proTotals.Input)
 		}
